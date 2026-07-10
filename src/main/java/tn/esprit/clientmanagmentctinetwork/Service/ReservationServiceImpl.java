@@ -46,7 +46,7 @@ public class ReservationServiceImpl implements ReservationService {
         reservation.setClient(client);
         reservation.setReservationTime(bookingTime);
         reservation.setDescription(dto.getDescription());
-        reservation.setStatus("CONFIRMED");
+        reservation.setStatus("UNTREATED");
 
         return reservationRepository.save(reservation);
     }
@@ -110,5 +110,14 @@ public class ReservationServiceImpl implements ReservationService {
         reservation.setStatus("CANCELLED");
         reservation.setCancellationReason(reason); // Store the reason
         reservationRepository.save(reservation);
+    }
+
+    @Override
+    public void updateReservationStatus(Long id, String status) {
+        ReservationModel r = reservationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
+        r.setStatus(status);
+        r.setCancellationReason(null); // Clear reason if state changes back to active
+        reservationRepository.save(r);
     }
 }

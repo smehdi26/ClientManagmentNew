@@ -32,7 +32,7 @@
 <body class="py-5">
 
 <div class="container">
-    <!-- Navigation Back Link -->
+    <!-- Back Navigation Link -->
     <div class="mb-4">
         <a th:href="@{/dashboard}" class="text-decoration-none text-secondary d-inline-flex align-items-center gap-2">
             <i class="bi bi-arrow-left"></i> Back to Dashboard
@@ -40,11 +40,10 @@
     </div>
 
     <div class="row g-4">
-        <!-- Left Column: Client Core Profile card -->
+        <!-- Left: Client Profile Details Card -->
         <div class="col-lg-5">
             <div class="card p-4">
                 <div class="text-center mb-4 pb-3 border-bottom">
-                    <!-- Client Initial -->
                     <div class="bg-primary text-white p-3 rounded-circle d-inline-flex mb-3 align-items-center justify-content-center" style="width: 72px; height: 72px; font-size: 28px; font-weight: 700;">
                         <span th:text="${client.name != null && !client.name.isEmpty() ? #strings.substring(client.name, 0, 1).toUpperCase() : 'C'}">C</span>
                     </div>
@@ -52,7 +51,6 @@
                     <span class="text-muted small" th:text="${client.email}">jane@example.com</span>
                 </div>
 
-                <!-- Client Contact Info -->
                 <div class="mb-3">
                     <label class="form-label text-muted small fw-medium">Contact Numbers</label>
                     <div class="d-flex flex-wrap gap-2">
@@ -63,14 +61,12 @@
                     </div>
                 </div>
 
-                <!-- Client Notes -->
                 <div class="mb-4">
                     <label class="form-label text-muted small fw-medium">Notes & Description</label>
                     <div class="p-3 bg-light rounded-3 text-muted" th:text="${client.description != null && !client.description.isEmpty() ? client.description : 'No notes registered for this client.'}"></div>
                 </div>
 
                 <div class="d-grid gap-2">
-                    <!-- Quick booking link pre-selecting the client -->
                     <a th:href="@{/reservations(clientId=${client.id})}" class="btn btn-primary py-2 rounded-3 d-flex align-items-center justify-content-center gap-2">
                         <i class="bi bi-calendar-event"></i> Book Reservation
                     </a>
@@ -78,7 +74,7 @@
             </div>
         </div>
 
-        <!-- Right Column: Client Reservation Timeline Log -->
+        <!-- Right: Client Reservation Log -->
         <div class="col-lg-7">
             <div class="card p-4 h-100">
                 <h5 class="fw-bold mb-4 d-flex align-items-center gap-2">
@@ -92,48 +88,54 @@
                             <th>Scheduled Date</th>
                             <th>Time</th>
                             <th>Description</th>
-                            <th>Status</th>
-                            <th class="text-end">Actions</th>
+                            <th>Status State</th>
+                            <th class="text-end" style="width: 140px;">Actions</th>
                         </tr>
                         </thead>
                         <tbody>
                         <tr th:each="res : ${reservations}">
-                            <!-- Date -->
                             <td class="fw-medium text-dark" th:text="${#temporals.format(res.reservationTime, 'yyyy-MM-dd')}">2026-07-10</td>
-                            <!-- Time -->
                             <td th:text="${#temporals.format(res.reservationTime, 'HH:mm')}">09:00</td>
-                            <!-- Notes -->
                             <td class="text-muted small" th:text="${res.description != null && !res.description.isEmpty() ? res.description : '-'}"></td>
-                            <!-- Status Badges -->
+
+                            <!-- Dynamic Badge Color mapping based on status selection -->
                             <td>
-                                <span class="badge" th:classappend="${res.status == 'CONFIRMED'} ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'" th:text="${res.status}">
-                                    CONFIRMED
-                                </span>
-                                <!-- Cancellation Reason Display -->
+                                <span class="badge mb-1" th:classappend="${
+                                    res.status == 'UNTREATED' ? 'bg-warning-subtle text-warning-emphasis' : (
+                                    res.status == 'IN_PROGRESS' ? 'bg-primary-subtle text-primary-emphasis' : (
+                                    res.status == 'DONE' ? 'bg-success-subtle text-success-emphasis' : (
+                                    res.status == 'CANCELLED' ? 'bg-danger-subtle text-danger-emphasis' : ''
+                                )))}" th:text="${res.status}">UNTREATED</span>
+
                                 <small th:if="${res.status == 'CANCELLED' && res.cancellationReason != null && !res.cancellationReason.isEmpty()}"
                                        class="d-block text-danger small mt-1" th:text="${'Reason: ' + res.cancellationReason}"></small>
                             </td>
-                            <!-- Actions Panel -->
-                            <td class="text-end">
-                                <div class="d-flex gap-2 justify-content-end">
 
-                                    <!-- Cancel action trigger -->
-                                    <form th:if="${res.status == 'CONFIRMED'}" th:action="@{/reservations/cancel/{id}(id=${res.id})}" method="post" onsubmit="return promptCancellationReason(this);">
+                            <!-- Status Dropdown & Reschedule Actions -->
+                            <td class="text-end">
+                                <div class="d-flex flex-column gap-2 align-items-end">
+
+                                    <!-- Manual Status Editor Form -->
+                                    <form th:action="@{/reservations/status/{id}(id=${res.id})}" method="post" class="w-100">
                                         <input type="hidden" name="reason">
-                                        <!-- Redirect parameters to return immediately back to this profile view -->
                                         <input type="hidden" name="redirect" th:value="${'/clients/' + client.phones[0].phoneNumber}">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">Cancel</button>
+
+                                        <select name="status" class="form-select form-select-sm" onchange="submitStatusForm(this)">
+                                            <option value="UNTREATED" th:selected="${res.status == 'UNTREATED'}">Untreated</option>
+                                            <option value="IN_PROGRESS" th:selected="${res.status == 'IN_PROGRESS'}">In Progress</option>
+                                            <option value="DONE" th:selected="${res.status == 'DONE'}">Done</option>
+                                            <option value="CANCELLED" th:selected="${res.status == 'CANCELLED'}">Cancelled</option>
+                                        </select>
                                     </form>
 
-                                    <!-- Reschedule Link passing Client ID and Original Description -->
-                                    <a th:href="@{/reservations(clientId=${client.id}, description=${res.description})}" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1">
+                                    <!-- Quick Reschedule Trigger -->
+                                    <a th:href="@{/reservations(clientId=${client.id}, description=${res.description})}" class="btn btn-xs btn-outline-secondary py-1 px-2" style="font-size: 11px;">
                                         <i class="bi bi-arrow-repeat"></i> Reschedule
                                     </a>
 
                                 </div>
                             </td>
                         </tr>
-                        <!-- Fallback empty view -->
                         <tr th:if="${#lists.isEmpty(reservations)}">
                             <td colspan="5" class="text-center text-muted py-5">
                                 <i class="bi bi-calendar-x fs-2 mb-2 d-block text-muted"></i>
@@ -149,14 +151,21 @@
 </div>
 
 <script>
-    // Triggers custom cancellation reason prompt securely without XSS blocks
-    function promptCancellationReason(formElement) {
-        const reason = prompt("Enter the reason for cancelling this reservation (optional):");
-        if (reason === null) {
-            return false; // Cancel form submission
+    // Handles status dropdown execution and cancellation reason prompts
+    function submitStatusForm(selectElement) {
+        const form = selectElement.form;
+        const status = selectElement.value;
+
+        if (status === 'CANCELLED') {
+            const reason = prompt("Enter the reason for cancelling this reservation (optional):");
+            if (reason === null) {
+                // User clicked "Cancel" on the prompt box - revert dropdown state
+                window.location.reload();
+                return;
+            }
+            form.querySelector('input[name="reason"]').value = reason;
         }
-        formElement.querySelector('input[name="reason"]').value = reason;
-        return true; // Proceed with submission
+        form.submit();
     }
 </script>
 </body>

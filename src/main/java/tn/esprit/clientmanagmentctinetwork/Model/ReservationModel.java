@@ -22,10 +22,11 @@ public class ReservationModel {
     private String description;
 
     @Column(nullable = false)
-    private String status = "CONFIRMED"; // CONFIRMED, CANCELLED
+    private String status = "UNTREATED"; // UNTREATED, IN_PROGRESS, DONE, CANCELLED
 
     @Column(name = "cancellation_reason", columnDefinition = "TEXT")
     private String cancellationReason;
+
 
     // Getters and Setters
     public Long getId() { return id; }

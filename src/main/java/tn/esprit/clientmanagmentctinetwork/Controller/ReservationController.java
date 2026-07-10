@@ -90,4 +90,20 @@ public class ReservationController {
         }
         return "redirect:/reservations?date=" + dateStr;
     }
+
+    @PostMapping("/status/{id}")
+    public String updateStatus(
+            @PathVariable("id") Long id,
+            @RequestParam("status") String status,
+            @RequestParam(value = "reason", required = false) String reason,
+            @RequestParam("redirect") String redirectUrl) {
+
+        if ("CANCELLED".equals(status)) {
+            reservationService.cancelReservation(id, reason);
+        } else {
+            reservationService.updateReservationStatus(id, status);
+        }
+
+        return "redirect:" + redirectUrl;
+    }
 }

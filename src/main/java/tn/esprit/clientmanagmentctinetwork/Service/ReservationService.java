@@ -13,4 +13,5 @@ public interface ReservationService {
     List<TimeSlot> getSlotsForDate(LocalDate date);
     List<ReservationModel> getReservationsByClientId(Long clientId);
     void cancelReservation(Long id, String reason);
+    void updateReservationStatus(Long id, String status);
 }

@@ -13,11 +13,11 @@ import java.util.Optional;
 @Repository
 public interface ReservationRepository extends JpaRepository<ReservationModel, Long> {
 
-    @Query("SELECT r FROM ReservationModel r WHERE r.reservationTime = :time AND r.status = 'CONFIRMED'")
+    @Query("SELECT r FROM ReservationModel r WHERE r.reservationTime = :time AND r.status != 'CANCELLED'")
     Optional<ReservationModel> findActiveByTime(@Param("time") LocalDateTime time);
 
-    @Query("SELECT r FROM ReservationModel r WHERE r.reservationTime >= :start AND r.reservationTime < :end AND r.status = 'CONFIRMED'")
+    @Query("SELECT r FROM ReservationModel r WHERE r.reservationTime >= :start AND r.reservationTime < :end AND r.status != 'CANCELLED'")
     List<ReservationModel> findActiveByTimeRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
-    java.util.List<ReservationModel> findByClientIdOrderByReservationTimeDesc(Long clientId);
+    List<ReservationModel> findByClientIdOrderByReservationTimeDesc(Long clientId);
 }
