@@ -67,7 +67,8 @@
                 </div>
 
                 <div class="d-grid gap-2">
-                    <a th:href="@{/reservations(clientId=${client.id})}" class="btn btn-primary py-2 rounded-3 d-flex align-items-center justify-content-center gap-2">
+                    <!-- Point to /reservations/schedule with the preselected client -->
+                    <a th:href="@{/reservations/schedule(clientId=${client.id})}" class="btn btn-primary py-2 rounded-3 d-flex align-items-center justify-content-center gap-2">
                         <i class="bi bi-calendar-event"></i> Book Reservation
                     </a>
                 </div>

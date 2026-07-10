@@ -20,4 +20,5 @@ public interface ReservationRepository extends JpaRepository<ReservationModel, L
     List<ReservationModel> findActiveByTimeRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     List<ReservationModel> findByClientIdOrderByReservationTimeDesc(Long clientId);
+    java.util.List<ReservationModel> findAllByOrderByReservationTimeDesc();
 }

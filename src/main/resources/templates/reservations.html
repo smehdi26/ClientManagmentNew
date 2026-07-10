@@ -5,8 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enterprise Scheduler - CTI Network</title>
+    <!-- Font: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         :root {
@@ -53,7 +56,7 @@
             border-radius: 12px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         }
-        /* Time slots list */
+        /* Slot Row Styling */
         .slot-row {
             border-bottom: 1px solid #f1f5f9;
             transition: background-color 0.2s;
@@ -113,6 +116,10 @@
                 <h3 class="fw-bold text-dark mb-1">Time Reservation</h3>
                 <p class="text-muted mb-0">Select a date and allocate 30-minute intervals for client meetings</p>
             </div>
+            <!-- Back to Reservations Directory -->
+            <a th:href="@{/reservations}" class="btn btn-outline-secondary d-flex align-items-center gap-2 px-3 py-2">
+                <i class="bi bi-arrow-left"></i> View All Reservations
+            </a>
         </div>
 
         <div class="row g-4">
@@ -153,7 +160,7 @@
 
                             <!-- Actions -->
                             <div>
-                                <!-- Open booking details in form -->
+                                <!-- Open booking details in form using custom data-attributes securely -->
                                 <button th:if="${!slot.booked}" type="button" class="btn btn-sm btn-outline-primary px-3" th:data-time="${slot.time}" onclick="prepareBooking(this.dataset.time)">
                                     Book Slot
                                 </button>
@@ -162,6 +169,8 @@
                                 <form th:if="${slot.booked}" th:action="@{/reservations/cancel/{id}(id=${slot.reservationId})}" method="post" onsubmit="return promptCancellationReason(this);">
                                     <input type="hidden" name="date" th:value="${selectedDate}">
                                     <input type="hidden" name="reason" id="cancellation-reason-input">
+                                    <!-- Return directly back to scheduler view -->
+                                    <input type="hidden" name="redirect" th:value="${'/reservations/schedule?date=' + selectedDate}">
                                     <button type="submit" class="btn btn-sm btn-outline-danger px-3">
                                         Cancel Booking
                                     </button>
@@ -183,7 +192,7 @@
                         <p class="mb-0">Choose a valid business workday on the left to allocate meetings.</p>
                     </div>
 
-                    <!-- Safe Native HTML Parameter Form -->
+                    <!-- Native HTML parameter mapping form bypassing Thymeleaf conversion errors -->
                     <form th:if="${!#lists.isEmpty(slots)}" th:action="@{/reservations/book}" method="post">
 
                         <!-- Date (Bound Hidden) -->
@@ -213,7 +222,7 @@
                                 <option th:each="client : ${clients}"
                                         th:value="${client.id}"
                                         th:text="${client.name + ' (' + client.email + ')'}"
-                                        th:selected="${reservation.clientId == client.id}"> <!-- Auto select trigger -->
+                                        th:selected="${reservation.clientId == client.id}">
                                 </option>
                             </select>
                         </div>
@@ -232,20 +241,21 @@
     </div>
 </main>
 
-<script th:inline="javascript">
+<script>
     // Automatically loads the clicked timeline slot into the scheduler form
     function prepareBooking(timeString) {
         document.getElementById('form-time-input').value = timeString;
     }
+
+    // Handles the confirmation and prompt for cancellation reasons securely
     function promptCancellationReason(formElement) {
         const reason = prompt("Enter the reason for cancelling this reservation (optional):");
         if (reason === null) {
-            return false; // User clicked "Cancel" on the prompt, abort submit
+            return false; // Aborts submission
         }
         formElement.querySelector('input[name="reason"]').value = reason;
-        return true; // Submit the form
+        return true; // Continues form post
     }
 </script>
-
 </body>
 </html>

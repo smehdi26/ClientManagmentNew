@@ -23,11 +23,19 @@ public class ReservationController {
         this.clientService = clientService;
     }
 
+    // 1. Directory View: List all reservations
     @GetMapping
+    public String showAllReservations(Model model) {
+        model.addAttribute("reservations", reservationService.getAllReservations());
+        return "reservation-list";
+    }
+
+    // 2. Scheduler View: Book specific intervals
+    @GetMapping("/schedule")
     public String showScheduler(
             @RequestParam(value = "date", required = false) String dateStr,
             @RequestParam(value = "clientId", required = false) Long clientId,
-            @RequestParam(value = "description", required = false) String description, // New Parameter
+            @RequestParam(value = "description", required = false) String description,
             Model model) {
 
         LocalDate date = (dateStr == null || dateStr.trim().isEmpty()) ? LocalDate.now() : LocalDate.parse(dateStr);
@@ -43,7 +51,7 @@ public class ReservationController {
             dto.setClientId(clientId);
         }
         if (description != null) {
-            dto.setDescription(description); // Pre-fill notes during rescheduling
+            dto.setDescription(description);
         }
         model.addAttribute("reservation", dto);
 
@@ -73,13 +81,13 @@ public class ReservationController {
             return "reservations";
         }
 
-        return "redirect:/reservations?date=" + dto.getDate();
+        return "redirect:/reservations/schedule?date=" + dto.getDate();
     }
 
     @PostMapping("/cancel/{id}")
     public String cancelSlot(
             @PathVariable("id") Long id,
-            @RequestParam(value = "reason", required = false) String reason, // Capture reason
+            @RequestParam(value = "reason", required = false) String reason,
             @RequestParam(value = "date", required = false) String dateStr,
             @RequestParam(value = "redirect", required = false) String redirectUrl) {
 
@@ -88,7 +96,7 @@ public class ReservationController {
         if (redirectUrl != null && !redirectUrl.trim().isEmpty()) {
             return "redirect:" + redirectUrl;
         }
-        return "redirect:/reservations?date=" + dateStr;
+        return "redirect:/reservations/schedule?date=" + dateStr;
     }
 
     @PostMapping("/status/{id}")

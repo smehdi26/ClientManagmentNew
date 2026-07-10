@@ -120,4 +120,9 @@ public class ReservationServiceImpl implements ReservationService {
         r.setCancellationReason(null); // Clear reason if state changes back to active
         reservationRepository.save(r);
     }
+
+    @Override
+    public List<ReservationModel> getAllReservations() {
+        return reservationRepository.findAllByOrderByReservationTimeDesc();
+    }
 }
