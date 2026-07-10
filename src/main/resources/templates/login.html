@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - CTI Network</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-card {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 16px -8px rgba(0,0,0,0.05);
+            background-color: #ffffff;
+            width: 100%;
+            max-width: 440px;
+        }
+        .btn-primary {
+            background-color: #4f46e5;
+            border-color: #4f46e5;
+            padding: 12px;
+            font-weight: 500;
+        }
+        .btn-primary:hover {
+            background-color: #4338ca;
+            border-color: #4338ca;
+        }
+        .form-control:focus {
+            border-color: #a5b4fc;
+            box-shadow: 0 0 0 0.25rem rgba(165, 180, 252, 0.25);
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-card p-4 p-md-5">
+    <div class="text-center mb-4">
+        <div class="bg-primary text-white p-2 rounded d-inline-flex mb-3">
+            <i class="bi bi-shield-lock-fill fs-3"></i>
+        </div>
+        <h4 class="fw-bold mb-1">Welcome Back</h4>
+        <p class="text-muted small">Sign in to your Administrative account</p>
+    </div>
+
+    <!-- Alert Notifications -->
+    <div th:if="${param.error}" class="alert alert-danger d-flex align-items-center gap-2 small py-2 rounded-3">
+        <i class="bi bi-exclamation-triangle-fill"></i> Invalid email address or secure password.
+    </div>
+    <div th:if="${param.logout}" class="alert alert-info d-flex align-items-center gap-2 small py-2 rounded-3">
+        <i class="bi bi-info-circle-fill"></i> Successfully logged out of administrative session.
+    </div>
+
+    <form th:action="@{/login}" method="post">
+        <!-- Username input -->
+        <div class="mb-3">
+            <label class="form-label text-muted small fw-medium">Email Address</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-envelope"></i></span>
+                <input type="email" name="username" class="form-control bg-light border-start-0 ps-0" placeholder="admin@cti-network.tn" required>
+            </div>
+        </div>
+
+        <!-- Password input -->
+        <div class="mb-4">
+            <label class="form-label text-muted small fw-medium">Password</label>
+            <div class="input-group">
+                <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-key"></i></span>
+                <input type="password" name="password" class="form-control bg-light border-start-0 ps-0" placeholder="••••••••" required>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 rounded-3 mb-3">Authenticate</button>
+    </form>
+
+    <div class="text-center">
+        <span class="text-muted small">No workspace account? <a th:href="@{/register}" class="text-decoration-none">Sign Up</a></span>
+    </div>
+</div>
+
+</body>
+</html>

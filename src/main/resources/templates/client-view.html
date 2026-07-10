@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>View Client</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h3 class="mb-0">Client Overview</h3>
+                </div>
+                <div class="card-body p-4">
+                    <table class="table table-bordered">
+                        <tr>
+                            <th class="w-30">Client Name</th>
+                            <td th:text="${client.name}"></td>
+                        </tr>
+                        <tr>
+                            <th>Email</th>
+                            <td th:text="${client.email}"></td>
+                        </tr>
+                        <tr>
+                            <th>Description</th>
+                            <td th:text="${client.description}"></td>
+                        </tr>
+                        <tr>
+                            <th>Phone Numbers</th>
+                            <td>
+                                <ul class="list-group">
+                                    <li class="list-group-item" th:each="phone : ${client.phones}">
+                                        <span th:text="${phone.phoneNumber}"></span>
+                                    </li>
+                                </ul>
+                            </td>
+                        </tr>
+                    </table>
+                    <div class="text-end">
+                        <a th:href="@{/dashboard}" class="btn btn-secondary">Back to Dashboard</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
