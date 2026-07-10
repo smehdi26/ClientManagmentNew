@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import tn.esprit.clientmanagmentctinetwork.Dto.ClientDto;
 import tn.esprit.clientmanagmentctinetwork.Model.ClientModel;
 import tn.esprit.clientmanagmentctinetwork.Service.ClientService;
+import tn.esprit.clientmanagmentctinetwork.Service.ReservationService;
 
 import java.util.Optional;
 
@@ -16,15 +17,17 @@ import java.util.Optional;
 public class ClientController {
 
     private final ClientService clientService;
+    private final ReservationService reservationService; // Inject ReservationService
 
-    public ClientController(ClientService clientService) {
+    public ClientController(ClientService clientService, ReservationService reservationService) {
         this.clientService = clientService;
+        this.reservationService = reservationService;
     }
 
     @GetMapping("/add")
     public String showAddForm(Model model) {
         ClientDto clientDto = new ClientDto();
-        clientDto.getPhones().add(""); // Prep-populate first input slot
+        clientDto.getPhones().add("");
         model.addAttribute("client", clientDto);
         return "client-add";
     }
@@ -41,13 +44,16 @@ public class ClientController {
         return "redirect:/dashboard";
     }
 
+    // Updated viewClient mapping to load reservation history
     @GetMapping("/{phoneNumber}")
     public String viewClient(@PathVariable("phoneNumber") String phoneNumber, Model model) {
-        Optional<ClientModel> client = clientService.findByPhoneNumber(phoneNumber);
-        if (client.isEmpty()) {
+        Optional<ClientModel> clientOpt = clientService.findByPhoneNumber(phoneNumber);
+        if (clientOpt.isEmpty()) {
             return "redirect:/dashboard";
         }
-        model.addAttribute("client", client.get());
+        ClientModel client = clientOpt.get();
+        model.addAttribute("client", client);
+        model.addAttribute("reservations", reservationService.getReservationsByClientId(client.getId()));
         return "client-view";
     }
 
@@ -86,7 +92,6 @@ public class ClientController {
         return "redirect:/dashboard";
     }
 
-    // Custom helper to validate exact 8 Tunisian digits and global uniqueness
     private void validatePhones(ClientDto clientDto, BindingResult result, Long clientId) {
         if (clientDto.getPhones() == null || clientDto.getPhones().stream().allMatch(String::isEmpty)) {
             result.rejectValue("phones", null, "At least one phone number is required");
