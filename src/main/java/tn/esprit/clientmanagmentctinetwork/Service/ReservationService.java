@@ -12,4 +12,5 @@ public interface ReservationService {
     void cancelReservation(Long id);
     List<TimeSlot> getSlotsForDate(LocalDate date);
     List<ReservationModel> getReservationsByClientId(Long clientId);
+    void cancelReservation(Long id, String reason);
 }

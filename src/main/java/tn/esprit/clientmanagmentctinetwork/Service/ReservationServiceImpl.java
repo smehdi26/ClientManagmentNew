@@ -97,8 +97,18 @@ public class ReservationServiceImpl implements ReservationService {
 
         return slots;
     }
+
     @Override
     public List<ReservationModel> getReservationsByClientId(Long clientId) {
         return reservationRepository.findByClientIdOrderByReservationTimeDesc(clientId);
+    }
+
+    @Override
+    public void cancelReservation(Long id, String reason) {
+        ReservationModel reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Reservation record not found."));
+        reservation.setStatus("CANCELLED");
+        reservation.setCancellationReason(reason); // Store the reason
+        reservationRepository.save(reservation);
     }
 }

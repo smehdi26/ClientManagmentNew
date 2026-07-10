@@ -26,7 +26,8 @@ public class ReservationController {
     @GetMapping
     public String showScheduler(
             @RequestParam(value = "date", required = false) String dateStr,
-            @RequestParam(value = "clientId", required = false) Long clientId, // New Parameter
+            @RequestParam(value = "clientId", required = false) Long clientId,
+            @RequestParam(value = "description", required = false) String description, // New Parameter
             Model model) {
 
         LocalDate date = (dateStr == null || dateStr.trim().isEmpty()) ? LocalDate.now() : LocalDate.parse(dateStr);
@@ -38,9 +39,11 @@ public class ReservationController {
         ReservationDto dto = new ReservationDto();
         dto.setDate(date);
 
-        // Auto-select client if ID is provided
         if (clientId != null) {
             dto.setClientId(clientId);
+        }
+        if (description != null) {
+            dto.setDescription(description); // Pre-fill notes during rescheduling
         }
         model.addAttribute("reservation", dto);
 
@@ -73,14 +76,14 @@ public class ReservationController {
         return "redirect:/reservations?date=" + dto.getDate();
     }
 
-    // Flexible cancellation route that redirects dynamically
     @PostMapping("/cancel/{id}")
     public String cancelSlot(
             @PathVariable("id") Long id,
+            @RequestParam(value = "reason", required = false) String reason, // Capture reason
             @RequestParam(value = "date", required = false) String dateStr,
             @RequestParam(value = "redirect", required = false) String redirectUrl) {
 
-        reservationService.cancelReservation(id);
+        reservationService.cancelReservation(id, reason);
 
         if (redirectUrl != null && !redirectUrl.trim().isEmpty()) {
             return "redirect:" + redirectUrl;

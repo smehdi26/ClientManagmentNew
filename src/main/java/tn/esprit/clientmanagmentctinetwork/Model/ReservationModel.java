@@ -24,6 +24,9 @@ public class ReservationModel {
     @Column(nullable = false)
     private String status = "CONFIRMED"; // CONFIRMED, CANCELLED
 
+    @Column(name = "cancellation_reason", columnDefinition = "TEXT")
+    private String cancellationReason;
+
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -39,4 +42,7 @@ public class ReservationModel {
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+
+    public String getCancellationReason() { return cancellationReason; }
+    public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
 }

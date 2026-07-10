@@ -158,9 +158,10 @@
                                     Book Slot
                                 </button>
 
-                                <!-- Cancel/Unlock Booking -->
-                                <form th:if="${slot.booked}" th:action="@{/reservations/cancel/{id}(id=${slot.reservationId})}" method="post" onsubmit="return confirm('Free up this time slot?');">
+                                <!-- Cancel/Unlock Booking with Reason -->
+                                <form th:if="${slot.booked}" th:action="@{/reservations/cancel/{id}(id=${slot.reservationId})}" method="post" onsubmit="return promptCancellationReason(this);">
                                     <input type="hidden" name="date" th:value="${selectedDate}">
+                                    <input type="hidden" name="reason" id="cancellation-reason-input">
                                     <button type="submit" class="btn btn-sm btn-outline-danger px-3">
                                         Cancel Booking
                                     </button>
@@ -236,6 +237,15 @@
     function prepareBooking(timeString) {
         document.getElementById('form-time-input').value = timeString;
     }
+    function promptCancellationReason(formElement) {
+        const reason = prompt("Enter the reason for cancelling this reservation (optional):");
+        if (reason === null) {
+            return false; // User clicked "Cancel" on the prompt, abort submit
+        }
+        formElement.querySelector('input[name="reason"]').value = reason;
+        return true; // Submit the form
+    }
 </script>
+
 </body>
 </html>

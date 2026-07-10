@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Client Profile - CTI Network</title>
+    <!-- Font: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         :root {
@@ -21,12 +24,15 @@
             border-radius: 16px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.03);
         }
+        .badge {
+            font-weight: 500;
+        }
     </style>
 </head>
 <body class="py-5">
 
 <div class="container">
-    <!-- Back to Dashboard -->
+    <!-- Navigation Back Link -->
     <div class="mb-4">
         <a th:href="@{/dashboard}" class="text-decoration-none text-secondary d-inline-flex align-items-center gap-2">
             <i class="bi bi-arrow-left"></i> Back to Dashboard
@@ -34,10 +40,11 @@
     </div>
 
     <div class="row g-4">
-        <!-- Left: Client Personal Information -->
+        <!-- Left Column: Client Core Profile card -->
         <div class="col-lg-5">
             <div class="card p-4">
                 <div class="text-center mb-4 pb-3 border-bottom">
+                    <!-- Client Initial -->
                     <div class="bg-primary text-white p-3 rounded-circle d-inline-flex mb-3 align-items-center justify-content-center" style="width: 72px; height: 72px; font-size: 28px; font-weight: 700;">
                         <span th:text="${client.name != null && !client.name.isEmpty() ? #strings.substring(client.name, 0, 1).toUpperCase() : 'C'}">C</span>
                     </div>
@@ -45,6 +52,7 @@
                     <span class="text-muted small" th:text="${client.email}">jane@example.com</span>
                 </div>
 
+                <!-- Client Contact Info -->
                 <div class="mb-3">
                     <label class="form-label text-muted small fw-medium">Contact Numbers</label>
                     <div class="d-flex flex-wrap gap-2">
@@ -55,13 +63,14 @@
                     </div>
                 </div>
 
+                <!-- Client Notes -->
                 <div class="mb-4">
                     <label class="form-label text-muted small fw-medium">Notes & Description</label>
                     <div class="p-3 bg-light rounded-3 text-muted" th:text="${client.description != null && !client.description.isEmpty() ? client.description : 'No notes registered for this client.'}"></div>
                 </div>
 
                 <div class="d-grid gap-2">
-                    <!-- Dynamic pathway link to booking area -->
+                    <!-- Quick booking link pre-selecting the client -->
                     <a th:href="@{/reservations(clientId=${client.id})}" class="btn btn-primary py-2 rounded-3 d-flex align-items-center justify-content-center gap-2">
                         <i class="bi bi-calendar-event"></i> Book Reservation
                     </a>
@@ -69,7 +78,7 @@
             </div>
         </div>
 
-        <!-- Right: Client Reservation Log -->
+        <!-- Right Column: Client Reservation Timeline Log -->
         <div class="col-lg-7">
             <div class="card p-4 h-100">
                 <h5 class="fw-bold mb-4 d-flex align-items-center gap-2">
@@ -89,23 +98,42 @@
                         </thead>
                         <tbody>
                         <tr th:each="res : ${reservations}">
+                            <!-- Date -->
                             <td class="fw-medium text-dark" th:text="${#temporals.format(res.reservationTime, 'yyyy-MM-dd')}">2026-07-10</td>
+                            <!-- Time -->
                             <td th:text="${#temporals.format(res.reservationTime, 'HH:mm')}">09:00</td>
+                            <!-- Notes -->
                             <td class="text-muted small" th:text="${res.description != null && !res.description.isEmpty() ? res.description : '-'}"></td>
+                            <!-- Status Badges -->
                             <td>
                                 <span class="badge" th:classappend="${res.status == 'CONFIRMED'} ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'" th:text="${res.status}">
                                     CONFIRMED
                                 </span>
+                                <!-- Cancellation Reason Display -->
+                                <small th:if="${res.status == 'CANCELLED' && res.cancellationReason != null && !res.cancellationReason.isEmpty()}"
+                                       class="d-block text-danger small mt-1" th:text="${'Reason: ' + res.cancellationReason}"></small>
                             </td>
+                            <!-- Actions Panel -->
                             <td class="text-end">
-                                <!-- Cancellation action with safe mapping redirection back to client profile -->
-                                <form th:if="${res.status == 'CONFIRMED'}" th:action="@{/reservations/cancel/{id}(id=${res.id})}" method="post" onsubmit="return confirm('Cancel this client reservation?');">
-                                    <!-- Use dynamic redirect value to return instantly to this profile view -->
-                                    <input type="hidden" name="redirect" th:value="${'/clients/' + client.phones[0].phoneNumber}">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger px-3">Cancel</button>
-                                </form>
+                                <div class="d-flex gap-2 justify-content-end">
+
+                                    <!-- Cancel action trigger -->
+                                    <form th:if="${res.status == 'CONFIRMED'}" th:action="@{/reservations/cancel/{id}(id=${res.id})}" method="post" onsubmit="return promptCancellationReason(this);">
+                                        <input type="hidden" name="reason">
+                                        <!-- Redirect parameters to return immediately back to this profile view -->
+                                        <input type="hidden" name="redirect" th:value="${'/clients/' + client.phones[0].phoneNumber}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Cancel</button>
+                                    </form>
+
+                                    <!-- Reschedule Link passing Client ID and Original Description -->
+                                    <a th:href="@{/reservations(clientId=${client.id}, description=${res.description})}" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1">
+                                        <i class="bi bi-arrow-repeat"></i> Reschedule
+                                    </a>
+
+                                </div>
                             </td>
                         </tr>
+                        <!-- Fallback empty view -->
                         <tr th:if="${#lists.isEmpty(reservations)}">
                             <td colspan="5" class="text-center text-muted py-5">
                                 <i class="bi bi-calendar-x fs-2 mb-2 d-block text-muted"></i>
@@ -120,5 +148,16 @@
     </div>
 </div>
 
+<script>
+    // Triggers custom cancellation reason prompt securely without XSS blocks
+    function promptCancellationReason(formElement) {
+        const reason = prompt("Enter the reason for cancelling this reservation (optional):");
+        if (reason === null) {
+            return false; // Cancel form submission
+        }
+        formElement.querySelector('input[name="reason"]').value = reason;
+        return true; // Proceed with submission
+    }
+</script>
 </body>
 </html>
