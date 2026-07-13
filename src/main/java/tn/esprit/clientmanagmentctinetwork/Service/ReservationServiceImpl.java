@@ -6,8 +6,10 @@ import tn.esprit.clientmanagmentctinetwork.Dto.ReservationDto;
 import tn.esprit.clientmanagmentctinetwork.Dto.TimeSlot;
 import tn.esprit.clientmanagmentctinetwork.Model.ClientModel;
 import tn.esprit.clientmanagmentctinetwork.Model.ReservationModel;
+import tn.esprit.clientmanagmentctinetwork.Model.NotificationModel;
 import tn.esprit.clientmanagmentctinetwork.Repository.ClientRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.ReservationRepository;
+import tn.esprit.clientmanagmentctinetwork.Repository.NotificationRepository; // Added import
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -23,17 +25,24 @@ public class ReservationServiceImpl implements ReservationService {
 
     private final ReservationRepository reservationRepository;
     private final ClientRepository clientRepository;
+    private final NotificationService notificationService;
+    private final NotificationRepository notificationRepository; // Added dependency
 
-    public ReservationServiceImpl(ReservationRepository reservationRepository, ClientRepository clientRepository) {
+    // Inject all required dependencies
+    public ReservationServiceImpl(ReservationRepository reservationRepository,
+                                  ClientRepository clientRepository,
+                                  NotificationService notificationService,
+                                  NotificationRepository notificationRepository) { // Added parameter
         this.reservationRepository = reservationRepository;
         this.clientRepository = clientRepository;
+        this.notificationService = notificationService;
+        this.notificationRepository = notificationRepository; // Added mapping
     }
 
     @Override
     public ReservationModel createReservation(ReservationDto dto) {
         LocalDateTime bookingTime = LocalDateTime.of(dto.getDate(), dto.getTime());
 
-        // Validate double-booking on active slots
         Optional<ReservationModel> active = reservationRepository.findActiveByTime(bookingTime);
         if (active.isPresent()) {
             throw new IllegalStateException("This time slot has already been booked by another client.");
@@ -48,36 +57,53 @@ public class ReservationServiceImpl implements ReservationService {
         reservation.setDescription(dto.getDescription());
         reservation.setStatus("UNTREATED");
 
-        return reservationRepository.save(reservation);
+        ReservationModel saved = reservationRepository.save(reservation);
+
+        // Log action to the Notification Center
+        notificationService.createNotification(
+                "New reservation scheduled for client " + client.getName() + " on " + dto.getDate() + " at " + dto.getTime() + ".",
+                "SUCCESS"
+        );
+
+        return saved;
     }
 
+    // Overloaded method (1 parameter)
     @Override
     public void cancelReservation(Long id) {
+        this.cancelReservation(id, null);
+    }
+
+    // Overloaded method (2 parameters)
+    @Override
+    public void cancelReservation(Long id, String reason) {
         ReservationModel reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Reservation record not found."));
-        reservation.setStatus("CANCELLED"); // Cancelling marks the slot free instantly
+        reservation.setStatus("CANCELLED");
+        reservation.setCancellationReason(reason);
         reservationRepository.save(reservation);
+
+        // Log action to the Notification Center
+        notificationService.createNotification(
+                "Reservation for client " + reservation.getClient().getName() + " on " + reservation.getReservationTime().toLocalDate() + " has been CANCELLED. Reason: " + (reason != null && !reason.trim().isEmpty() ? reason : "Not specified"),
+                "DANGER"
+        );
     }
 
     @Override
     public List<TimeSlot> getSlotsForDate(LocalDate date) {
         List<TimeSlot> slots = new ArrayList<>();
-
-        // Sundays are closed
         if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
             return slots;
         }
 
-        // Saturday (9 AM - 1 PM) vs Mon-Fri (9 AM - 5 PM)
         LocalTime startTime = LocalTime.of(9, 0);
         LocalTime endTime = (date.getDayOfWeek() == DayOfWeek.SATURDAY) ? LocalTime.of(13, 0) : LocalTime.of(17, 0);
 
-        // Fetch confirmed reservations for the given date
         LocalDateTime startOfDay = LocalDateTime.of(date, LocalTime.MIN);
         LocalDateTime endOfDay = LocalDateTime.of(date, LocalTime.MAX);
         List<ReservationModel> dailyBookings = reservationRepository.findActiveByTimeRange(startOfDay, endOfDay);
 
-        // Construct 30-minute intervals
         LocalTime current = startTime;
         while (current.isBefore(endTime)) {
             LocalTime slotTime = current;
@@ -91,10 +117,8 @@ public class ReservationServiceImpl implements ReservationService {
             } else {
                 slots.add(new TimeSlot(slotTime, false, null, null, null));
             }
-
             current = current.plusMinutes(30);
         }
-
         return slots;
     }
 
@@ -104,12 +128,8 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
-    public void cancelReservation(Long id, String reason) {
-        ReservationModel reservation = reservationRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Reservation record not found."));
-        reservation.setStatus("CANCELLED");
-        reservation.setCancellationReason(reason); // Store the reason
-        reservationRepository.save(reservation);
+    public List<ReservationModel> getAllReservations() {
+        return reservationRepository.findAllByOrderByReservationTimeDesc();
     }
 
     @Override
@@ -117,12 +137,46 @@ public class ReservationServiceImpl implements ReservationService {
         ReservationModel r = reservationRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
         r.setStatus(status);
-        r.setCancellationReason(null); // Clear reason if state changes back to active
+        r.setCancellationReason(null);
         reservationRepository.save(r);
+
+        // Log action to the Notification Center
+        notificationService.createNotification(
+                "Reservation status for client " + r.getClient().getName() + " updated manually to " + status + ".",
+                "INFO"
+        );
     }
 
     @Override
-    public List<ReservationModel> getAllReservations() {
-        return reservationRepository.findAllByOrderByReservationTimeDesc();
+    public long countTodayReservations() {
+        LocalDate today = LocalDate.now();
+        LocalDateTime start = LocalDateTime.of(today, LocalTime.MIN);
+        LocalDateTime end = LocalDateTime.of(today, LocalTime.MAX);
+        return reservationRepository.countActiveByTimeRange(start, end);
+    }
+
+    @Override
+    public List<ReservationModel> getUpcomingAlerts() {
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime oneHourHence = now.plusHours(1);
+        List<ReservationModel> upcoming = reservationRepository.findUpcomingReservationsWithinHour(now, oneHourHence);
+
+        // Save reminders to database history if they do not already exist
+        for (ReservationModel r : upcoming) {
+            boolean alreadyLogged = notificationRepository.existsByReservationIdAndType(r.getId(), "WARNING");
+            if (!alreadyLogged) {
+                String clientPhone = r.getClient().getPhones().isEmpty() ? "No Number" : r.getClient().getPhones().get(0).getPhoneNumber();
+                String message = "Reminder: Please contact " + r.getClient().getName() + " (" + clientPhone + ") for their upcoming appointment at " + r.getReservationTime().toLocalTime() + ".";
+
+                NotificationModel notification = new NotificationModel();
+                notification.setMessage(message);
+                notification.setType("WARNING");
+                notification.setReservationId(r.getId());
+                notification.setCreatedAt(LocalDateTime.now());
+                notification.setReadStatus(false);
+                notificationRepository.save(notification);
+            }
+        }
+        return upcoming;
     }
 }

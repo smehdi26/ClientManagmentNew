@@ -80,6 +80,11 @@
         <a class="nav-link active" th:href="@{/reservations}">
             <i class="bi bi-calendar-event-fill"></i> Reservations
         </a>
+        <!-- Dynamic sidebar notification link -->
+        <a class="nav-link" th:href="@{/notifications}">
+            <i class="bi bi-bell-fill"></i> Notifications
+            <span th:if="${unreadNotificationsCount > 0}" class="badge bg-danger ms-auto rounded-pill" th:text="${unreadNotificationsCount}">0</span>
+        </a>
     </nav>
 
     <div class="p-3 border-top border-secondary">

@@ -10,19 +10,31 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import tn.esprit.clientmanagmentctinetwork.Dto.AdminRegistrationDto;
 import tn.esprit.clientmanagmentctinetwork.Model.AdminModel;
+import tn.esprit.clientmanagmentctinetwork.Model.ClientModel;
 import tn.esprit.clientmanagmentctinetwork.Service.AdminService;
 import tn.esprit.clientmanagmentctinetwork.Service.ClientService;
+import tn.esprit.clientmanagmentctinetwork.Service.NotificationService; // Added import
+import tn.esprit.clientmanagmentctinetwork.Service.ReservationService;
+
+import java.util.List;
 
 @Controller
 public class AuthController {
 
     private final AdminService adminService;
     private final ClientService clientService;
+    private final ReservationService reservationService;
+    private final NotificationService notificationService; // Added dependency
 
-    // Inject both services
-    public AuthController(AdminService adminService, ClientService clientService) {
+    // Inject all required services through the constructor
+    public AuthController(AdminService adminService,
+                          ClientService clientService,
+                          ReservationService reservationService,
+                          NotificationService notificationService) { // Added parameter
         this.adminService = adminService;
         this.clientService = clientService;
+        this.reservationService = reservationService;
+        this.notificationService = notificationService; // Added mapping
     }
 
     @GetMapping("/login")
@@ -62,8 +74,7 @@ public class AuthController {
 
     @GetMapping("/dashboard")
     public String dashboard(@RequestParam(value = "keyword", required = false) String keyword, Model model) {
-        java.util.List<tn.esprit.clientmanagmentctinetwork.Model.ClientModel> clients;
-
+        List<ClientModel> clients;
         if (keyword != null && !keyword.trim().isEmpty()) {
             clients = clientService.searchClients(keyword);
             model.addAttribute("keyword", keyword);
@@ -71,14 +82,27 @@ public class AuthController {
             clients = clientService.getAllClients();
         }
 
-        // Calculate the sum of all active phones safely in Java
+        // Calculate the sum of all registered phones safely on the Java side
         long totalPhones = clients.stream()
                 .filter(c -> c.getPhones() != null)
                 .mapToLong(c -> c.getPhones().size())
                 .sum();
 
         model.addAttribute("clients", clients);
-        model.addAttribute("totalPhones", totalPhones); // Pass the pre-calculated sum
+        model.addAttribute("totalPhones", totalPhones);
+
+        // Fetch Notification Systems
+        long todayCount = 0;
+        if (clients.size() > 0) {
+            todayCount = reservationService.countTodayReservations();
+            if (todayCount > 0) {
+                // Log popup state to DB history if it is the first load of the day
+                notificationService.logDailySummaryIfNew(todayCount);
+            }
+        }
+        model.addAttribute("todayReservationsCount", todayCount);
+        model.addAttribute("upcomingAlerts", reservationService.getUpcomingAlerts());
+
         return "dashboard";
     }
 }

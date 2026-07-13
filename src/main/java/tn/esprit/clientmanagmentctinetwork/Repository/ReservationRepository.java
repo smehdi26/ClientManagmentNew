@@ -21,4 +21,14 @@ public interface ReservationRepository extends JpaRepository<ReservationModel, L
 
     List<ReservationModel> findByClientIdOrderByReservationTimeDesc(Long clientId);
     java.util.List<ReservationModel> findAllByOrderByReservationTimeDesc();
+
+    // Counts active bookings for a specific day
+    @Query("SELECT COUNT(r) FROM ReservationModel r WHERE r.status != 'CANCELLED' AND " +
+            "r.reservationTime >= :start AND r.reservationTime <= :end")
+    long countActiveByTimeRange(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
+
+    // Identifies bookings starting within 1 hour from now
+    @Query("SELECT r FROM ReservationModel r WHERE r.status != 'CANCELLED' AND " +
+            "r.reservationTime >= :now AND r.reservationTime <= :oneHourHence")
+    List<ReservationModel> findUpcomingReservationsWithinHour(@Param("now") java.time.LocalDateTime now, @Param("oneHourHence") java.time.LocalDateTime oneHourHence);
 }
