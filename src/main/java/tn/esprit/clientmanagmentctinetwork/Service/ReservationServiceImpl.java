@@ -185,9 +185,57 @@ public class ReservationServiceImpl implements ReservationService {
         String cleanKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
         String cleanStatus = (status != null && !status.trim().isEmpty()) ? status.trim() : null;
 
+        Integer searchHour = null;
+        Integer searchMinute = null;
+        LocalDate searchDate = null;
+
+        if (cleanKeyword != null) {
+            // 1. Try parsing as exact hour and minute (e.g., "09:30")
+            if (cleanKeyword.matches("^\\d{1,2}:\\d{2}$")) {
+                String[] parts = cleanKeyword.split(":");
+                searchHour = Integer.parseInt(parts[0]);
+                searchMinute = Integer.parseInt(parts[1]);
+            }
+            // 2. Try parsing as a standalone hour (e.g., "09" or "9")
+            else if (cleanKeyword.matches("^\\d{1,2}$")) {
+                int value = Integer.parseInt(cleanKeyword);
+                if (value >= 0 && value <= 23) {
+                    searchHour = value;
+                }
+            }
+            // 3. Try parsing as a LocalDate object
+            try {
+                searchDate = LocalDate.parse(cleanKeyword);
+            } catch (Exception e) {
+                // Ignore if not a valid date
+            }
+
+            // 4. Dynamically adjust search hour to match the database's timezone (UTC)
+            if (searchHour != null) {
+                java.time.ZoneOffset offset = java.time.ZoneId.systemDefault().getRules().getOffset(java.time.Instant.now());
+                int offsetHours = offset.getTotalSeconds() / 3600; // Dynamically gets +1 for WAT / Tunis
+
+                searchHour = searchHour - offsetHours; // Shifting local search hour to UTC
+
+                // Wrap around hours if offset exceeds boundary bounds
+                if (searchHour < 0) {
+                    searchHour += 24;
+                } else if (searchHour > 23) {
+                    searchHour -= 24;
+                }
+            }
+        }
+
         if (cleanKeyword == null && cleanStatus == null) {
             return getAllReservations();
         }
-        return reservationRepository.searchAndFilterReservations(cleanKeyword, cleanStatus);
+
+        return reservationRepository.searchAndFilterReservations(
+                cleanKeyword,
+                cleanStatus,
+                searchHour,
+                searchMinute,
+                searchDate
+        );
     }
 }
