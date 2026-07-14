@@ -31,4 +31,17 @@ public interface ReservationRepository extends JpaRepository<ReservationModel, L
     @Query("SELECT r FROM ReservationModel r WHERE r.status != 'CANCELLED' AND " +
             "r.reservationTime >= :now AND r.reservationTime <= :oneHourHence")
     List<ReservationModel> findUpcomingReservationsWithinHour(@Param("now") java.time.LocalDateTime now, @Param("oneHourHence") java.time.LocalDateTime oneHourHence);
+
+    // Global search and status state filtering
+    @Query("SELECT DISTINCT r FROM ReservationModel r LEFT JOIN r.client c WHERE " +
+            "(:status IS NULL OR :status = '' OR r.status = :status) AND (" +
+            ":keyword IS NULL OR :keyword = '' OR " +
+            "LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(r.description) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(r.status) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(CONCAT(r.reservationTime, '')) LIKE LOWER(CONCAT('%', :keyword, '%'))" +
+            ") ORDER BY r.reservationTime DESC")
+    List<ReservationModel> searchAndFilterReservations(
+            @Param("keyword") String keyword,
+            @Param("status") String status);
 }

@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -80,7 +79,6 @@
         <a class="nav-link active" th:href="@{/reservations}">
             <i class="bi bi-calendar-event-fill"></i> Reservations
         </a>
-        <!-- Dynamic sidebar notification link -->
         <a class="nav-link" th:href="@{/notifications}">
             <i class="bi bi-bell-fill"></i> Notifications
             <span th:if="${unreadNotificationsCount > 0}" class="badge bg-danger ms-auto rounded-pill" th:text="${unreadNotificationsCount}">0</span>
@@ -96,7 +94,7 @@
     </div>
 </aside>
 
-<!-- Main Workspace -->
+<!-- Main Workspace Content -->
 <main class="main-content">
     <div class="container-fluid">
 
@@ -106,10 +104,45 @@
                 <h3 class="fw-bold text-dark mb-1">Reservations Directory</h3>
                 <p class="text-muted mb-0">Unified dashboard displaying scheduled times, client assignments, and statuses</p>
             </div>
-            <!-- Dynamic scheduler redirect path -->
             <a th:href="@{/reservations/schedule}" class="btn btn-primary d-flex align-items-center gap-2 px-4 py-2">
                 <i class="bi bi-calendar-plus"></i> + Schedule Reservation
             </a>
+        </div>
+
+        <!-- Notion-style Search and Filter Form -->
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body bg-white rounded">
+                <form th:action="@{/reservations}" method="get" id="searchFilterForm" class="row g-2 align-items-center">
+                    <!-- Search Input -->
+                    <div class="col-md-7">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+                            <input type="text" name="keyword" th:value="${keyword}" class="form-control bg-light border-start-0 ps-0"
+                                   placeholder="Search by name, date, time, description...">
+                        </div>
+                    </div>
+                    <!-- Status Filter (Triggers Form Submit on change) -->
+                    <div class="col-md-3">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-funnel"></i></span>
+                            <select name="statusFilter" class="form-select bg-light border-start-0 ps-0" onchange="document.getElementById('searchFilterForm').submit();">
+                                <option value="" th:selected="${statusFilter == null || statusFilter == ''}">Status: All</option>
+                                <option value="UNTREATED" th:selected="${statusFilter == 'UNTREATED'}">Status: Untreated</option>
+                                <option value="IN_PROGRESS" th:selected="${statusFilter == 'IN_PROGRESS'}">Status: In Progress</option>
+                                <option value="DONE" th:selected="${statusFilter == 'DONE'}">Status: Done</option>
+                                <option value="CANCELLED" th:selected="${statusFilter == 'CANCELLED'}">Status: Cancelled</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Submit & Reset Buttons -->
+                    <div class="col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">Search</button>
+                        <a th:href="@{/reservations}" class="btn btn-light border px-3" title="Reset Filters">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </a>
+                    </div>
+                </form>
+            </div>
         </div>
 
         <!-- All Reservations Log Table -->
@@ -128,7 +161,6 @@
                     </thead>
                     <tbody>
                     <tr th:each="res : ${reservations}">
-                        <!-- Client Profile Reference -->
                         <td>
                             <div class="d-flex align-items-center gap-2">
                                 <a th:href="@{/clients/{num}(num=${res.client.phones[0].phoneNumber})}" class="fw-bold text-dark text-decoration-none">
@@ -136,13 +168,9 @@
                                 </a>
                             </div>
                         </td>
-                        <!-- Date -->
                         <td th:text="${#temporals.format(res.reservationTime, 'yyyy-MM-dd')}">2026-07-10</td>
-                        <!-- Time -->
                         <td th:text="${#temporals.format(res.reservationTime, 'HH:mm')}">13:00</td>
-                        <!-- Description -->
                         <td class="text-muted small" th:text="${res.description != null && !res.description.isEmpty() ? res.description : '-'}"></td>
-                        <!-- Dynamic Status Badges -->
                         <td>
                             <span class="badge mb-1" th:classappend="${
                                 res.status == 'UNTREATED' ? 'bg-warning-subtle text-warning-emphasis' : (
@@ -154,13 +182,13 @@
                             <small th:if="${res.status == 'CANCELLED' && res.cancellationReason != null && !res.cancellationReason.isEmpty()}"
                                    class="d-block text-danger small mt-1" th:text="${'Reason: ' + res.cancellationReason}"></small>
                         </td>
-                        <!-- Status Editing Dropdown -->
                         <td class="text-end">
                             <div class="d-flex flex-column gap-2 align-items-end">
 
                                 <form th:action="@{/reservations/status/{id}(id=${res.id})}" method="post" class="w-100">
                                     <input type="hidden" name="reason">
-                                    <input type="hidden" name="redirect" value="/reservations">
+                                    <!-- Dynamic Redirect preserving search constraints -->
+                                    <input type="hidden" name="redirect" th:value="${'/reservations?keyword=' + (keyword != null ? keyword : '') + '&statusFilter=' + (statusFilter != null ? statusFilter : '')}">
 
                                     <select name="status" class="form-select form-select-sm" onchange="submitStatusForm(this)">
                                         <option value="UNTREATED" th:selected="${res.status == 'UNTREATED'}">Untreated</option>
@@ -170,7 +198,6 @@
                                     </select>
                                 </form>
 
-                                <!-- Dynamic Rescheduling Link -->
                                 <a th:href="@{/reservations/schedule(clientId=${res.client.id}, description=${res.description})}" class="btn btn-xs btn-outline-secondary py-1 px-2" style="font-size: 11px;">
                                     <i class="bi bi-arrow-repeat"></i> Reschedule
                                 </a>
@@ -181,7 +208,7 @@
                     <tr th:if="${#lists.isEmpty(reservations)}">
                         <td colspan="6" class="text-center text-muted py-5">
                             <i class="bi bi-calendar-x fs-1 mb-2 d-block text-muted"></i>
-                            No reservations recorded in the database.
+                            No matching reservation records found.
                         </td>
                     </tr>
                     </tbody>

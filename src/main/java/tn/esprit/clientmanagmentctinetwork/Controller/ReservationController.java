@@ -23,10 +23,16 @@ public class ReservationController {
         this.clientService = clientService;
     }
 
-    // 1. Directory View: List all reservations
+    // 1. Directory View: List all reservations with custom filtering
     @GetMapping
-    public String showAllReservations(Model model) {
-        model.addAttribute("reservations", reservationService.getAllReservations());
+    public String showAllReservations(
+            @RequestParam(value = "keyword", required = false) String keyword,
+            @RequestParam(value = "statusFilter", required = false) String statusFilter,
+            Model model) {
+
+        model.addAttribute("reservations", reservationService.searchAndFilterReservations(keyword, statusFilter));
+        model.addAttribute("keyword", keyword);
+        model.addAttribute("statusFilter", statusFilter);
         return "reservation-list";
     }
 

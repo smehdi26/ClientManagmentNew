@@ -179,4 +179,15 @@ public class ReservationServiceImpl implements ReservationService {
         }
         return upcoming;
     }
+
+    @Override
+    public List<ReservationModel> searchAndFilterReservations(String keyword, String status) {
+        String cleanKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+        String cleanStatus = (status != null && !status.trim().isEmpty()) ? status.trim() : null;
+
+        if (cleanKeyword == null && cleanStatus == null) {
+            return getAllReservations();
+        }
+        return reservationRepository.searchAndFilterReservations(cleanKeyword, cleanStatus);
+    }
 }
