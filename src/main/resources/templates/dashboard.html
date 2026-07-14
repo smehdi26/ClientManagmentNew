@@ -239,10 +239,10 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead>
                         <tr>
-                            <th>Client Name</th>
-                            <th>Email Address</th>
-                            <th>Description</th>
-                            <th>Active Contact Numbers</th>
+                            <th class="sortable" data-sort-dir="asc">Client Name <i class="bi bi-arrow-down-up ms-1 text-muted" style="font-size: 11px;"></i></th>
+                            <th class="sortable" data-sort-dir="asc">Email Address <i class="bi bi-arrow-down-up ms-1 text-muted" style="font-size: 11px;"></i></th>
+                            <th class="sortable" data-sort-dir="asc">Description <i class="bi bi-arrow-down-up ms-1 text-muted" style="font-size: 11px;"></i></th>
+                            <th class="sortable" data-sort-dir="asc">Active Contact Numbers <i class="bi bi-arrow-down-up ms-1 text-muted" style="font-size: 11px;"></i></th>
                             <th class="text-end">Actions</th>
                         </tr>
                         </thead>
@@ -399,6 +399,50 @@
             }
         }
     }
+    // Universal Interactive Table Sorter
+    document.querySelectorAll('th.sortable').forEach(headerEl => {
+        headerEl.style.cursor = 'pointer';
+        headerEl.addEventListener('click', () => {
+            const table = headerEl.closest('table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr:not(.text-center)')); // Excludes empty fallback row
+
+            if (rows.length === 0) return;
+
+            const index = Array.from(headerEl.parentNode.children).indexOf(headerEl);
+            const isAscending = headerEl.dataset.sortDir === 'asc';
+
+            // Toggle sorting direction attribute
+            const nextDir = isAscending ? 'desc' : 'asc';
+            headerEl.dataset.sortDir = nextDir;
+
+            // Reset all other headers' icons in this table
+            table.querySelectorAll('th.sortable i').forEach(icon => {
+                icon.className = 'bi bi-arrow-down-up ms-1 text-muted';
+            });
+
+            // Update current header's icon
+            const icon = headerEl.querySelector('i');
+            if (icon) {
+                icon.className = nextDir === 'asc' ? 'bi bi-caret-up-fill ms-1 text-primary' : 'bi bi-caret-down-fill ms-1 text-primary';
+            }
+
+            // Sort rows based on data types
+            rows.sort((rowA, rowB) => {
+                const cellA = rowA.children[index].textContent.trim();
+                const cellB = rowB.children[index].textContent.trim();
+
+                if (!isNaN(cellA) && !isNaN(cellB) && cellA !== '' && cellB !== '') {
+                    return isAscending ? Number(cellB) - Number(cellA) : Number(cellA) - Number(cellB);
+                }
+
+                return isAscending ? cellB.localeCompare(cellA) : cellA.localeCompare(cellB);
+            });
+
+            // Re-append sorted rows to the tbody
+            rows.forEach(row => tbody.appendChild(row));
+        });
+    });
 </script>
 </body>
 </html>
