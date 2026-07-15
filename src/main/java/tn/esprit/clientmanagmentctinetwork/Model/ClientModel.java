@@ -50,4 +50,12 @@ public class ClientModel {
 
     public List<ClientPhone> getPhones() { return phones; }
     public void setPhones(List<ClientPhone> phones) { this.phones = phones; }
+
+    // Null-safe helper to retrieve primary phone number
+    public String getPrimaryPhoneNumber() {
+        if (phones == null || phones.isEmpty()) {
+            return "00000000"; // Fallback default
+        }
+        return phones.get(0).getPhoneNumber();
+    }
 }

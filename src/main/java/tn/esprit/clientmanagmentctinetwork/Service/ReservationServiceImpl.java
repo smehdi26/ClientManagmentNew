@@ -187,7 +187,8 @@ public class ReservationServiceImpl implements ReservationService {
 
         Integer searchHour = null;
         Integer searchMinute = null;
-        LocalDate searchDate = null;
+        LocalDateTime searchDateStart = null;
+        LocalDateTime searchDateEnd = null;
 
         if (cleanKeyword != null) {
             // 1. Try parsing as exact hour and minute (e.g., "09:30")
@@ -203,21 +204,22 @@ public class ReservationServiceImpl implements ReservationService {
                     searchHour = value;
                 }
             }
-            // 3. Try parsing as a LocalDate object
+            // 3. Try parsing as a LocalDate object and calculate safe boundaries in Java
             try {
-                searchDate = LocalDate.parse(cleanKeyword);
+                LocalDate parsedDate = LocalDate.parse(cleanKeyword);
+                searchDateStart = LocalDateTime.of(parsedDate, LocalTime.MIN); // Start of day
+                searchDateEnd = LocalDateTime.of(parsedDate, LocalTime.MAX);   // End of day
             } catch (Exception e) {
-                // Ignore if not a valid date
+                // Ignore if not a valid date format
             }
 
             // 4. Dynamically adjust search hour to match the database's timezone (UTC)
             if (searchHour != null) {
                 java.time.ZoneOffset offset = java.time.ZoneId.systemDefault().getRules().getOffset(java.time.Instant.now());
-                int offsetHours = offset.getTotalSeconds() / 3600; // Dynamically gets +1 for WAT / Tunis
+                int offsetHours = offset.getTotalSeconds() / 3600; // e.g. +1 for WAT / Tunis
 
-                searchHour = searchHour - offsetHours; // Shifting local search hour to UTC
+                searchHour = searchHour - offsetHours;
 
-                // Wrap around hours if offset exceeds boundary bounds
                 if (searchHour < 0) {
                     searchHour += 24;
                 } else if (searchHour > 23) {
@@ -235,7 +237,8 @@ public class ReservationServiceImpl implements ReservationService {
                 cleanStatus,
                 searchHour,
                 searchMinute,
-                searchDate
+                searchDateStart,
+                searchDateEnd
         );
     }
 }

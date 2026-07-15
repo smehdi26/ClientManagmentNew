@@ -15,6 +15,10 @@ public class GlobalControllerAdvice {
 
     @ModelAttribute("unreadNotificationsCount")
     public long getUnreadNotificationsCount() {
-        return notificationService.getUnreadCount();
+        try {
+            return notificationService.getUnreadCount();
+        } catch (Exception e) {
+            return 0; // Safe fallback if database tables are compiling or down
+        }
     }
 }

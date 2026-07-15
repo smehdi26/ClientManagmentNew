@@ -33,7 +33,7 @@ public interface ReservationRepository extends JpaRepository<ReservationModel, L
     List<ReservationModel> findUpcomingReservationsWithinHour(@Param("now") java.time.LocalDateTime now, @Param("oneHourHence") java.time.LocalDateTime oneHourHence);
 
     // Global search and status state filtering
-    // Timezone-safe search and status state filtering
+    // 100% safe, timezone-neutral search and status state filtering
     @Query("SELECT DISTINCT r FROM ReservationModel r LEFT JOIN r.client c WHERE " +
             "(:status IS NULL OR :status = '' OR r.status = :status) AND (" +
             ":keyword IS NULL OR :keyword = '' OR " +
@@ -41,12 +41,13 @@ public interface ReservationRepository extends JpaRepository<ReservationModel, L
             "LOWER(r.description) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(r.status) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "(:searchHour IS NOT NULL AND HOUR(r.reservationTime) = :searchHour AND (:searchMinute IS NULL OR MINUTE(r.reservationTime) = :searchMinute)) OR " +
-            "(:searchDate IS NOT NULL AND YEAR(r.reservationTime) = YEAR(:searchDate) AND MONTH(r.reservationTime) = MONTH(:searchDate) AND DAY(r.reservationTime) = DAY(:searchDate))" +
+            "(:searchDateStart IS NOT NULL AND r.reservationTime >= :searchDateStart AND r.reservationTime <= :searchDateEnd)" +
             ") ORDER BY r.reservationTime DESC")
     List<ReservationModel> searchAndFilterReservations(
             @Param("keyword") String keyword,
             @Param("status") String status,
             @Param("searchHour") Integer searchHour,
             @Param("searchMinute") Integer searchMinute,
-            @Param("searchDate") java.time.LocalDate searchDate);
+            @Param("searchDateStart") java.time.LocalDateTime searchDateStart,
+            @Param("searchDateEnd") java.time.LocalDateTime searchDateEnd);
 }

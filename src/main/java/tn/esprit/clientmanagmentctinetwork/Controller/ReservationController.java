@@ -6,10 +6,12 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import tn.esprit.clientmanagmentctinetwork.Dto.ReservationDto;
+import tn.esprit.clientmanagmentctinetwork.Model.ReservationModel;
 import tn.esprit.clientmanagmentctinetwork.Service.ClientService;
 import tn.esprit.clientmanagmentctinetwork.Service.ReservationService;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Controller
 @RequestMapping("/reservations")
@@ -23,16 +25,31 @@ public class ReservationController {
         this.clientService = clientService;
     }
 
-    // 1. Directory View: List all reservations with custom filtering
+    // 1. Directory View: List all reservations with pre-calculated counts
     @GetMapping
     public String showAllReservations(
             @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "statusFilter", required = false) String statusFilter,
             Model model) {
 
-        model.addAttribute("reservations", reservationService.searchAndFilterReservations(keyword, statusFilter));
+        List<ReservationModel> reservations =
+                reservationService.searchAndFilterReservations(keyword, statusFilter);
+
+        model.addAttribute("reservations", reservations);
         model.addAttribute("keyword", keyword);
         model.addAttribute("statusFilter", statusFilter);
+
+        // Calculate the status counts in Java (prevents Thymeleaf SpEL selection crashes)
+        long untreated = reservations.stream().filter(r -> "UNTREATED".equals(r.getStatus())).count();
+        long inprogress = reservations.stream().filter(r -> "IN_PROGRESS".equals(r.getStatus())).count();
+        long done = reservations.stream().filter(r -> "DONE".equals(r.getStatus())).count();
+        long cancelled = reservations.stream().filter(r -> "CANCELLED".equals(r.getStatus())).count();
+
+        model.addAttribute("untreatedCount", untreated);
+        model.addAttribute("inprogressCount", inprogress);
+        model.addAttribute("doneCount", done);
+        model.addAttribute("cancelledCount", cancelled);
+
         return "reservation-list";
     }
 
