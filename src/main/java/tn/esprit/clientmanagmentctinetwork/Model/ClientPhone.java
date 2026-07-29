@@ -15,6 +15,7 @@ public class ClientPhone {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore // ADD THIS: Prevents Jackson infinite serialization loops
     private ClientModel client;
 
     public ClientPhone() {}
