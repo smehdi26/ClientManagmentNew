@@ -10,4 +10,5 @@ public interface ContractService {
     void deleteContract(Long id);
     List<ContractModel> searchAndFilterContracts(String keyword, String redevance);
     ContractModel updateContractSchedule(Long id, String months);
+    void checkContractNotifications();
 }

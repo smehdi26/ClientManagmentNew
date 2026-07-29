@@ -26,6 +26,12 @@ public class NotificationModel {
     @Column(name = "reservation_id")
     private Long reservationId;
 
+    @Column(name = "contract_id")
+    private Long contractId;
+
+    @Column(name = "trigger_key", unique = true) // Database-level duplicate prevention [1.1.2]
+    private String triggerKey;
+
     // Constructors
     public NotificationModel() {}
 
@@ -47,4 +53,10 @@ public class NotificationModel {
 
     public Long getReservationId() { return reservationId; }
     public void setReservationId(Long reservationId) { this.reservationId = reservationId; }
+
+    public Long getContractId() { return contractId; }
+    public void setContractId(Long contractId) { this.contractId = contractId; }
+
+    public String getTriggerKey() { return triggerKey; }
+    public void setTriggerKey(String triggerKey) { this.triggerKey = triggerKey; }
 }

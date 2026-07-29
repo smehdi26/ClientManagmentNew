@@ -36,6 +36,7 @@ public class ClientModel {
     }
 
     @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true)
+    @com.fasterxml.jackson.annotation.JsonIgnore // ADD THIS: Stops the serialization loop [1.2.4]
     private List<ContractModel> contracts = new java.util.ArrayList<>();
 
     public List<ContractModel> getContracts() { return contracts; }

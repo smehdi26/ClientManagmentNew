@@ -5,9 +5,12 @@ import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.clientmanagmentctinetwork.Dto.ContractDto;
 import tn.esprit.clientmanagmentctinetwork.Model.ClientModel;
 import tn.esprit.clientmanagmentctinetwork.Model.ContractModel;
+import tn.esprit.clientmanagmentctinetwork.Model.NotificationModel;
 import tn.esprit.clientmanagmentctinetwork.Repository.ClientRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.ContractRepository;
+import tn.esprit.clientmanagmentctinetwork.Repository.NotificationRepository;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -17,13 +20,16 @@ public class ContractServiceImpl implements ContractService {
     private final ContractRepository contractRepository;
     private final ClientRepository clientRepository;
     private final NotificationService notificationService;
+    private final NotificationRepository notificationRepository;
 
     public ContractServiceImpl(ContractRepository contractRepository,
                                ClientRepository clientRepository,
-                               NotificationService notificationService) {
+                               NotificationService notificationService,
+                               NotificationRepository notificationRepository) {
         this.contractRepository = contractRepository;
         this.clientRepository = clientRepository;
         this.notificationService = notificationService;
+        this.notificationRepository = notificationRepository;
     }
 
     @Override
@@ -105,5 +111,99 @@ public class ContractServiceImpl implements ContractService {
         );
 
         return saved;
+    }
+
+    @Override
+    public void checkContractNotifications() {
+        List<ContractModel> contracts = contractRepository.findAll();
+        LocalDate now = LocalDate.now();
+
+        for (ContractModel c : contracts) {
+            LocalDate signature = c.getDateSignature();
+            if (signature == null || now.isBefore(signature)) {
+                continue; // Contract has not started yet
+            }
+
+            int totalVisits = c.getNumberOfVisits();
+            if (totalVisits == 0) {
+                continue;
+            }
+
+            // Determine period duration (T) in months based on Redevance
+            int t = 2; // Default for ANNUELLE (6 visits/12 months)
+            String redevanceUpper = c.getRedevance().toUpperCase();
+            if ("SEMESTRIELLE".equals(redevanceUpper)) {
+                t = 6; // (2 visits/12 months)
+            } else if ("TRIMESTRIELLE".equals(redevanceUpper)) {
+                t = 3; // (4 visits/12 months)
+            }
+
+            // Calculate months elapsed since signature date
+            long monthsElapsed = java.time.temporal.ChronoUnit.MONTHS.between(signature, now);
+            int currentPeriod = (int) (monthsElapsed / t) + 1;
+
+            // Extract configured visit count
+            String monthsStr = c.getMonthsOfVisits();
+            String[] filledMonths = (monthsStr == null || monthsStr.trim().isEmpty()) ? new String[0] : monthsStr.split(", ");
+            int filledCount = filledMonths.length;
+
+            // Rule 1: Contract has started - Period 1 Notification
+            if (currentPeriod == 1 && filledCount == 0) {
+                String trigger = "CONTRACT_START_" + c.getId();
+                saveContractNotification(trigger,
+                        "Contract '" + c.getName() + "' has started. You are in the period of the first scheduled visit. Please contact client " + c.getClient().getName() + " (" + c.getClient().getPrimaryPhoneNumber() + ").",
+                        "INFO", c.getId());
+            }
+
+            // Rule 2: 1 Month before period ends, and the current period slot has not been scheduled yet
+            if (currentPeriod <= totalVisits) {
+                LocalDate periodEnd = signature.plusMonths(currentPeriod * t);
+                LocalDate warningStart = periodEnd.minusMonths(1);
+
+                if ((now.isAfter(warningStart) || now.isEqual(warningStart)) && now.isBefore(periodEnd)) {
+                    if (filledCount < currentPeriod) {
+                        String trigger = "CONTRACT_WARNING_PERIOD_" + currentPeriod + "_" + c.getId();
+                        saveContractNotification(trigger,
+                                "Reminder: Maintenance contract '" + c.getName() + "' (Period " + currentPeriod + ") ends on " + periodEnd + ". Please visit client " + c.getClient().getName() + " and register this visit month.",
+                                "WARNING", c.getId());
+                    }
+                }
+            }
+
+            // Rule 3: All visits are fully configured and completed
+            if (filledCount == totalVisits) {
+                String trigger = "CONTRACT_DONE_" + c.getId();
+                saveContractNotification(trigger,
+                        "Success: All " + totalVisits + " scheduled visits for maintenance contract '" + c.getName() + "' have been fully completed.",
+                        "SUCCESS", c.getId());
+            }
+
+            // Rule 4: Missed period - current period exceeds filled count
+            if (currentPeriod > 1 && currentPeriod <= totalVisits) {
+                if (filledCount < currentPeriod - 1) {
+                    String trigger = "CONTRACT_MISSED_PERIOD_" + currentPeriod + "_" + c.getId();
+                    saveContractNotification(trigger,
+                            "Urgent: A scheduled visit period was missed for contract '" + c.getName() + "' of client " + c.getClient().getName() + ". Please schedule a visit immediately.",
+                            "DANGER", c.getId());
+                }
+            }
+        }
+    }
+
+    private void saveContractNotification(String triggerKey, String message, String type, Long contractId) {
+        // Query first to prevent any database-level unique constraint exceptions! [1.1.2]
+        boolean exists = notificationRepository.existsByTriggerKey(triggerKey);
+
+        if (!exists) {
+            NotificationModel notification = new NotificationModel();
+            notification.setTriggerKey(triggerKey);
+            notification.setMessage(message);
+            notification.setType(type);
+            notification.setContractId(contractId);
+            notification.setCreatedAt(java.time.LocalDateTime.now());
+            notification.setReadStatus(false);
+
+            notificationRepository.save(notification);
+        }
     }
 }

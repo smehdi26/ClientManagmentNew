@@ -12,10 +12,11 @@ public interface NotificationRepository extends JpaRepository<NotificationModel,
     List<NotificationModel> findAllByOrderByCreatedAtDesc();
     long countByReadStatusFalse();
 
-    // Checks if warning has already been logged for a reservation
     boolean existsByReservationIdAndType(Long reservationId, String type);
 
-    // Checks if a daily summary was already logged for today
     @Query("SELECT COUNT(n) > 0 FROM NotificationModel n WHERE n.type = 'INFO' AND n.message LIKE %:dateStr%")
     boolean existsDailySummaryForDate(@Param("dateStr") String dateStr);
+
+    // ADD THIS: Checks if a trigger key is already in the database [1.1.2]
+    boolean existsByTriggerKey(String triggerKey);
 }

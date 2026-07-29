@@ -13,7 +13,8 @@ import tn.esprit.clientmanagmentctinetwork.Model.AdminModel;
 import tn.esprit.clientmanagmentctinetwork.Model.ClientModel;
 import tn.esprit.clientmanagmentctinetwork.Service.AdminService;
 import tn.esprit.clientmanagmentctinetwork.Service.ClientService;
-import tn.esprit.clientmanagmentctinetwork.Service.NotificationService; // Added import
+import tn.esprit.clientmanagmentctinetwork.Service.ContractService; // Added import
+import tn.esprit.clientmanagmentctinetwork.Service.NotificationService;
 import tn.esprit.clientmanagmentctinetwork.Service.ReservationService;
 
 import java.util.List;
@@ -24,17 +25,20 @@ public class AuthController {
     private final AdminService adminService;
     private final ClientService clientService;
     private final ReservationService reservationService;
-    private final NotificationService notificationService; // Added dependency
+    private final NotificationService notificationService;
+    private final ContractService contractService; // Added dependency
 
-    // Inject all required services through the constructor
+    // Constructor injecting all required services
     public AuthController(AdminService adminService,
                           ClientService clientService,
                           ReservationService reservationService,
-                          NotificationService notificationService) { // Added parameter
+                          NotificationService notificationService,
+                          ContractService contractService) { // Added parameter
         this.adminService = adminService;
         this.clientService = clientService;
         this.reservationService = reservationService;
-        this.notificationService = notificationService; // Added mapping
+        this.notificationService = notificationService;
+        this.contractService = contractService; // Added mapping
     }
 
     @GetMapping("/login")
@@ -74,6 +78,9 @@ public class AuthController {
 
     @GetMapping("/dashboard")
     public String dashboard(@RequestParam(value = "keyword", required = false) String keyword, Model model) {
+        // 1. Run maintenance contract periodic checks on page entry
+        contractService.checkContractNotifications();
+
         List<ClientModel> clients;
         if (keyword != null && !keyword.trim().isEmpty()) {
             clients = clientService.searchClients(keyword);
@@ -96,7 +103,7 @@ public class AuthController {
         if (clients.size() > 0) {
             todayCount = reservationService.countTodayReservations();
             if (todayCount > 0) {
-                // Log popup state to DB history if it is the first load of the day
+                // Log daily overview popup state to DB history if it is the first load of the day
                 notificationService.logDailySummaryIfNew(todayCount);
             }
         }

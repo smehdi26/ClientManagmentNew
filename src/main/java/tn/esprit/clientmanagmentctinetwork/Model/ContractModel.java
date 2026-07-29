@@ -28,7 +28,6 @@ public class ContractModel {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id", nullable = false)
-    @com.fasterxml.jackson.annotation.JsonIgnore // Prevent Jackson serialization loop [1.2.4]
     private ClientModel client;
 
     public ContractModel() {}

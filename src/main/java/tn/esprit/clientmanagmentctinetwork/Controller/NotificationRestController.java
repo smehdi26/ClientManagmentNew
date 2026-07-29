@@ -3,6 +3,7 @@ package tn.esprit.clientmanagmentctinetwork.Controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import tn.esprit.clientmanagmentctinetwork.Model.NotificationModel;
+import tn.esprit.clientmanagmentctinetwork.Service.ContractService; // Added import
 import tn.esprit.clientmanagmentctinetwork.Service.NotificationService;
 
 import java.util.List;
@@ -12,13 +13,20 @@ import java.util.List;
 public class NotificationRestController {
 
     private final NotificationService notificationService;
+    private final ContractService contractService; // Added dependency
 
-    public NotificationRestController(NotificationService notificationService) {
+    // Constructor injecting both services
+    public NotificationRestController(NotificationService notificationService,
+                                      ContractService contractService) { // Added parameter
         this.notificationService = notificationService;
+        this.contractService = contractService; // Added mapping
     }
 
     @GetMapping
     public ResponseEntity<List<NotificationModel>> getAllNotifications() {
+        // 1. Evaluate any new maintenance contract warnings before returning the list
+        contractService.checkContractNotifications();
+
         return ResponseEntity.ok(notificationService.getAllNotifications());
     }
 
