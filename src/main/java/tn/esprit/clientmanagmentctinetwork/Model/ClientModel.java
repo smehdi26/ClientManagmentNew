@@ -35,6 +35,12 @@ public class ClientModel {
         phone.setClient(null);
     }
 
+    @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ContractModel> contracts = new java.util.ArrayList<>();
+
+    public List<ContractModel> getContracts() { return contracts; }
+    public void setContracts(List<ContractModel> contracts) { this.contracts = contracts; }
+
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
