@@ -10,6 +10,9 @@ public class ReservationDto {
     @NotNull(message = "Please select a client")
     private Long clientId;
 
+    @jakarta.validation.constraints.NotBlank(message = "Reservation name/title is required")
+    private String name;
+
     @NotNull(message = "Please select a booking date")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) // Instructs Spring to parse 'yyyy-MM-dd'
     private LocalDate date;
@@ -23,6 +26,9 @@ public class ReservationDto {
     // Getters and Setters
     public Long getClientId() { return clientId; }
     public void setClientId(Long clientId) { this.clientId = clientId; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
     public LocalDate getDate() { return date; }
     public void setDate(LocalDate date) { this.date = date; }

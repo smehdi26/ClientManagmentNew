@@ -52,6 +52,7 @@ public class ReservationServiceImpl implements ReservationService {
                 .orElseThrow(() -> new IllegalArgumentException("Client not found"));
 
         ReservationModel reservation = new ReservationModel();
+        reservation.setName(dto.getName()); // Map the name
         reservation.setClient(client);
         reservation.setReservationTime(bookingTime);
         reservation.setDescription(dto.getDescription());
@@ -59,9 +60,9 @@ public class ReservationServiceImpl implements ReservationService {
 
         ReservationModel saved = reservationRepository.save(reservation);
 
-        // Log action to the Notification Center
+        // Log action with custom meeting name to Notification Center
         notificationService.createNotification(
-                "New reservation scheduled for client " + client.getName() + " on " + dto.getDate() + " at " + dto.getTime() + ".",
+                "New meeting '" + saved.getName() + "' scheduled for client " + client.getName() + " on " + dto.getDate() + " at " + dto.getTime() + ".",
                 "SUCCESS"
         );
 

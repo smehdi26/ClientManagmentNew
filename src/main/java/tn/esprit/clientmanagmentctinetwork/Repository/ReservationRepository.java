@@ -37,6 +37,7 @@ public interface ReservationRepository extends JpaRepository<ReservationModel, L
     @Query("SELECT DISTINCT r FROM ReservationModel r LEFT JOIN r.client c WHERE " +
             "(:status IS NULL OR :status = '' OR r.status = :status) AND (" +
             ":keyword IS NULL OR :keyword = '' OR " +
+            "LOWER(r.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " + // Added search check
             "LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(r.description) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(r.status) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +

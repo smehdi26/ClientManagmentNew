@@ -9,4 +9,5 @@ public interface NotificationService {
     long getUnreadCount();
     void markAllAsRead();
     void logDailySummaryIfNew(long count);
+    void deleteNotification(Long id);
 }

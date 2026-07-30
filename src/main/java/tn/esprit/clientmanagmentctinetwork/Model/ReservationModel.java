@@ -11,6 +11,9 @@ public class ReservationModel {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
+    private String name; // Reservation Title / Name
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id", nullable = false)
     private ClientModel client;
@@ -31,6 +34,9 @@ public class ReservationModel {
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
     public ClientModel getClient() { return client; }
     public void setClient(ClientModel client) { this.client = client; }
