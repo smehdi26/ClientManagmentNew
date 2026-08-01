@@ -18,6 +18,18 @@ public class ClientModel {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(name = "client_code", nullable = false, unique = true)
+    private String clientCode; // e.g., "CL0001" [1.1.2]
+
+    private String address;
+    private String city;
+    private String contact; // Legal representative
+    private String website;
+
+    @ManyToOne(fetch = FetchType.EAGER) // Load sector object directly during client queries [1.2.6]
+    @JoinColumn(name = "sector_id")
+    private SectorModel sector; // Optional sector reference
+
     @Column(columnDefinition = "TEXT")
     private String description;
 
@@ -54,6 +66,24 @@ public class ClientModel {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public String getClientCode() { return clientCode; }
+    public void setClientCode(String clientCode) { this.clientCode = clientCode; }
+
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+
+    public String getContact() { return contact; }
+    public void setContact(String contact) { this.contact = contact; }
+
+    public String getWebsite() { return website; }
+    public void setWebsite(String website) { this.website = website; }
+
+    public SectorModel getSector() { return sector; }
+    public void setSector(SectorModel sector) { this.sector = sector; }
 
     public List<ClientPhone> getPhones() { return phones; }
     public void setPhones(List<ClientPhone> phones) { this.phones = phones; }

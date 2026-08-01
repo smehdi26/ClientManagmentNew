@@ -23,4 +23,8 @@ public interface ClientRepository extends JpaRepository<ClientModel, Long> {
             "LOWER(c.description) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "p.phoneNumber LIKE CONCAT('%', :keyword, '%')")
     List<ClientModel> searchClients(@Param("keyword") String keyword);
+
+    // Finds the maximum ID for code generation sequence formatting [1.1.2]
+    @Query("SELECT COALESCE(MAX(c.id), 0) FROM ClientModel c")
+    Long findMaxId();
 }
