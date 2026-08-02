@@ -206,4 +206,64 @@ public class ContractServiceImpl implements ContractService {
             notificationRepository.save(notification);
         }
     }
+
+    @Override
+    public ContractModel getContractById(Long id) {
+        return contractRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Contract record not found."));
+    }
+
+    @Override
+    public ContractModel updateContract(Long id, ContractDto dto) {
+        ContractModel contract = getContractById(id);
+        contract.setName(dto.getName());
+        contract.setRedevance(dto.getRedevance());
+        contract.setDateSignature(dto.getDateSignature());
+        contract.setMonthsOfVisits(dto.getMonthsOfVisits());
+
+        // Re-calculate visits count
+        int visits = 0;
+        String redevanceUpper = dto.getRedevance().toUpperCase();
+        if ("ANNUELLE".equals(redevanceUpper)) visits = 6;
+        else if ("SEMESTRIELLE".equals(redevanceUpper)) visits = 2;
+        else if ("TRIMESTRIELLE".equals(redevanceUpper)) visits = 4;
+        contract.setNumberOfVisits(visits);
+
+        return contractRepository.save(contract);
+    }
+
+    @Override
+    public ContractModel updateStatus(Long id, String status) {
+        ContractModel contract = getContractById(id);
+        contract.setStatus(status);
+
+        notificationService.createNotification(
+                "Maintenance contract '" + contract.getName() + "' status was set to " + status + ".",
+                "INFO",
+                "CONTRACT"
+        );
+
+        return contractRepository.save(contract);
+    }
+
+    @Override
+    public ContractModel renewContract(Long id) {
+        ContractModel contract = getContractById(id);
+
+        LocalDate originalSignature = contract.getDateSignature();
+        if (originalSignature != null) {
+            // Add exactly 1 year to extend the contract [1.1.4]
+            contract.setDateSignature(originalSignature.plusYears(1));
+        }
+        // Clear old visit schedules for the new contract year [1.1.4]
+        contract.setMonthsOfVisits(null);
+
+        notificationService.createNotification(
+                "Contract '" + contract.getName() + "' has been RENEWED/EXTENDED to " + contract.getDateSignature() + ".",
+                "SUCCESS",
+                "CONTRACT"
+        );
+
+        return contractRepository.save(contract);
+    }
 }

@@ -30,6 +30,9 @@ public class ContractModel {
     @JoinColumn(name = "client_id", nullable = false)
     private ClientModel client;
 
+    @Column(nullable = false)
+    private String status = "ACTIVE"; // ACTIVE, SUSPENDED
+
     public ContractModel() {}
 
     // Getters and Setters
@@ -53,4 +56,7 @@ public class ContractModel {
 
     public ClientModel getClient() { return client; }
     public void setClient(ClientModel client) { this.client = client; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 }

@@ -11,4 +11,8 @@ public interface ContractService {
     List<ContractModel> searchAndFilterContracts(String keyword, String redevance);
     ContractModel updateContractSchedule(Long id, String months);
     void checkContractNotifications();
+    ContractModel getContractById(Long id);
+    ContractModel updateContract(Long id, ContractDto dto);
+    ContractModel updateStatus(Long id, String status);
+    ContractModel renewContract(Long id);
 }

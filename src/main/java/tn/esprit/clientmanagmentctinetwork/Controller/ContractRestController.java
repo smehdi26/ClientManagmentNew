@@ -49,4 +49,24 @@ public class ContractRestController {
         ContractModel updated = contractService.updateContractSchedule(id, months);
         return ResponseEntity.ok(updated);
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ContractModel> getContractById(@PathVariable Long id) {
+        return ResponseEntity.ok(contractService.getContractById(id));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ContractModel> updateContract(@PathVariable Long id, @RequestBody ContractDto dto) {
+        return ResponseEntity.ok(contractService.updateContract(id, dto));
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<ContractModel> updateStatus(@PathVariable Long id, @RequestParam("status") String status) {
+        return ResponseEntity.ok(contractService.updateStatus(id, status));
+    }
+
+    @PostMapping("/{id}/renew")
+    public ResponseEntity<ContractModel> renewContract(@PathVariable Long id) {
+        return ResponseEntity.ok(contractService.renewContract(id));
+    }
 }
