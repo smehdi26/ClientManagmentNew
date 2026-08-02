@@ -35,4 +35,10 @@ public class SectorRestController {
     public ResponseEntity<SectorModel> toggleStatus(@PathVariable Long id, @RequestParam("active") boolean active) {
         return ResponseEntity.ok(sectorService.updateSectorStatus(id, active));
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<SectorModel> updateSector(@PathVariable Long id, @RequestBody SectorModel sector) {
+        SectorModel updated = sectorService.saveSector(sector); // JPA merge handles this automatically if ID is present
+        return ResponseEntity.ok(updated);
+    }
 }
