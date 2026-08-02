@@ -19,13 +19,20 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public void createNotification(String message, String type) {
+    public void createNotification(String message, String type, String category) {
         NotificationModel notification = new NotificationModel();
         notification.setMessage(message);
         notification.setType(type);
+        notification.setCategory(category); // Save the category
         notification.setCreatedAt(LocalDateTime.now());
         notification.setReadStatus(false);
         notificationRepository.save(notification);
+    }
+
+    // Overload for backward compatibility with older logs
+    @Override
+    public void createNotification(String message, String type) {
+        this.createNotification(message, type, "CLIENT");
     }
 
     @Override
@@ -58,6 +65,8 @@ public class NotificationServiceImpl implements NotificationService {
             );
         }
     }
+
+
 
     @Override
     public void deleteNotification(Long id) {

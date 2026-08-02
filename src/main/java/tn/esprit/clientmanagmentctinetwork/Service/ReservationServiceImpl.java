@@ -63,7 +63,7 @@ public class ReservationServiceImpl implements ReservationService {
         // Log action with custom meeting name to Notification Center
         notificationService.createNotification(
                 "New meeting '" + saved.getName() + "' scheduled for client " + client.getName() + " on " + dto.getDate() + " at " + dto.getTime() + ".",
-                "SUCCESS"
+                "SUCCESS",  "RESERVATION"
         );
 
         return saved;
@@ -87,7 +87,7 @@ public class ReservationServiceImpl implements ReservationService {
         // Log action to the Notification Center
         notificationService.createNotification(
                 "Reservation for client " + reservation.getClient().getName() + " on " + reservation.getReservationTime().toLocalDate() + " has been CANCELLED. Reason: " + (reason != null && !reason.trim().isEmpty() ? reason : "Not specified"),
-                "DANGER"
+                "DANGER", "RESERVATION"
         );
     }
 
@@ -144,7 +144,7 @@ public class ReservationServiceImpl implements ReservationService {
         // Log action to the Notification Center
         notificationService.createNotification(
                 "Reservation status for client " + r.getClient().getName() + " updated manually to " + status + ".",
-                "INFO"
+                "INFO", "RESERVATION"
         );
     }
 

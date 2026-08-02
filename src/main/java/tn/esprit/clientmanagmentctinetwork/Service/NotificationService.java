@@ -10,4 +10,5 @@ public interface NotificationService {
     void markAllAsRead();
     void logDailySummaryIfNew(long count);
     void deleteNotification(Long id);
+    void createNotification(String message, String type, String category);
 }

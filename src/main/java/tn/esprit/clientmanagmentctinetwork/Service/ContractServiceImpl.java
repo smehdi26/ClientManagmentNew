@@ -61,7 +61,7 @@ public class ContractServiceImpl implements ContractService {
         // Log to Notification center
         notificationService.createNotification(
                 "New maintenance contract '" + saved.getName() + "' registered for client " + client.getName() + " with " + visits + " annual visits.",
-                "SUCCESS"
+                "SUCCESS", "CONTRACT"
         );
 
         return saved;
@@ -81,7 +81,7 @@ public class ContractServiceImpl implements ContractService {
         // Log termination
         notificationService.createNotification(
                 "Maintenance contract '" + contract.getName() + "' for client " + contract.getClient().getName() + " has been terminated.",
-                "DANGER"
+                "DANGER", "CONTRACT"
         );
     }
 
@@ -107,7 +107,7 @@ public class ContractServiceImpl implements ContractService {
         // Log notification
         notificationService.createNotification(
                 "Scheduled visit months for maintenance contract '" + saved.getName() + "' updated to: " + months + ".",
-                "INFO"
+                "INFO", "CONTRACT"
         );
 
         return saved;

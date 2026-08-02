@@ -32,6 +32,9 @@ public class NotificationModel {
     @Column(name = "trigger_key", unique = true) // Database-level duplicate prevention [1.1.2]
     private String triggerKey;
 
+    @Column(nullable = false)
+    private String category = "CLIENT"; // CLIENT, CONTRACT, RESERVATION
+
     // Constructors
     public NotificationModel() {}
 
@@ -59,4 +62,7 @@ public class NotificationModel {
 
     public String getTriggerKey() { return triggerKey; }
     public void setTriggerKey(String triggerKey) { this.triggerKey = triggerKey; }
+
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
 }

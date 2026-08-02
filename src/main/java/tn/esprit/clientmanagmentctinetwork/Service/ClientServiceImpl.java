@@ -21,13 +21,16 @@ public class ClientServiceImpl implements ClientService {
     private final ClientRepository clientRepository;
     private final ClientPhoneRepository clientPhoneRepository;
     private final SectorRepository sectorRepository;
+    private final NotificationService notificationService; // Inject NotificationService
 
     public ClientServiceImpl(ClientRepository clientRepository,
                              ClientPhoneRepository clientPhoneRepository,
-                             SectorRepository sectorRepository) {
+                             SectorRepository sectorRepository,
+                             NotificationService notificationService) {
         this.clientRepository = clientRepository;
         this.clientPhoneRepository = clientPhoneRepository;
         this.sectorRepository = sectorRepository;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -35,7 +38,6 @@ public class ClientServiceImpl implements ClientService {
         return clientRepository.findAll();
     }
 
-    // Restores the missing searchClients method used by the search bar
     @Override
     public List<ClientModel> searchClients(String keyword) {
         if (keyword != null && !keyword.trim().isEmpty()) {
@@ -48,22 +50,19 @@ public class ClientServiceImpl implements ClientService {
     public ClientModel saveClient(ClientDto clientDto) {
         ClientModel client = new ClientModel();
 
-        // Auto-generate sequential Client Code based on the maximum database ID [1.1.2]
         Long maxId = clientRepository.findMaxId();
-        String generatedCode = "CL" + String.format("%04d", maxId + 1); // e.g. "CL0001", "CL0002" [1.1.2]
+        String generatedCode = "CL" + String.format("%04d", maxId + 1);
         client.setClientCode(generatedCode);
 
         client.setName(clientDto.getName());
         client.setEmail(clientDto.getEmail());
         client.setDescription(clientDto.getDescription());
 
-        // Map optional profile fields [1.2.6]
         client.setAddress(clientDto.getAddress());
         client.setCity(clientDto.getCity());
         client.setContact(clientDto.getContact());
         client.setWebsite(clientDto.getWebsite());
 
-        // Map sector reference if present [1.2.6]
         if (clientDto.getSectorId() != null) {
             SectorModel sector = sectorRepository.findById(clientDto.getSectorId()).orElse(null);
             client.setSector(sector);
@@ -74,7 +73,17 @@ public class ClientServiceImpl implements ClientService {
                 client.addPhone(new ClientPhone(num.trim()));
             }
         }
-        return clientRepository.save(client);
+
+        ClientModel saved = clientRepository.save(client);
+
+        // LOG ACTION (CLIENT CATEGORY)
+        notificationService.createNotification(
+                "New client '" + saved.getName() + "' (Code: " + saved.getClientCode() + ") has been successfully registered.",
+                "SUCCESS",
+                "CLIENT"
+        );
+
+        return saved;
     }
 
     @Override
@@ -86,13 +95,11 @@ public class ClientServiceImpl implements ClientService {
         client.setEmail(clientDto.getEmail());
         client.setDescription(clientDto.getDescription());
 
-        // Update optional profile fields [1.2.6]
         client.setAddress(clientDto.getAddress());
         client.setCity(clientDto.getCity());
         client.setContact(clientDto.getContact());
         client.setWebsite(clientDto.getWebsite());
 
-        // Update sector reference if present [1.2.6]
         if (clientDto.getSectorId() != null) {
             SectorModel sector = sectorRepository.findById(clientDto.getSectorId()).orElse(null);
             client.setSector(sector);
@@ -100,7 +107,6 @@ public class ClientServiceImpl implements ClientService {
             client.setSector(null);
         }
 
-        // Safe phone re-write: delete old phone records and flush first
         client.getPhones().clear();
         clientRepository.saveAndFlush(client);
 
@@ -123,6 +129,13 @@ public class ClientServiceImpl implements ClientService {
         ClientModel client = clientRepository.findByPhoneNumber(phoneNumber)
                 .orElseThrow(() -> new IllegalArgumentException("Client not found"));
         clientRepository.delete(client);
+
+        // LOG ACTION (CLIENT CATEGORY)
+        notificationService.createNotification(
+                "Client file for '" + client.getName() + "' (Code: " + client.getClientCode() + ") was permanently deleted.",
+                "DANGER",
+                "CLIENT"
+        );
     }
 
     @Override
@@ -133,7 +146,6 @@ public class ClientServiceImpl implements ClientService {
         dto.setEmail(client.getEmail());
         dto.setDescription(client.getDescription());
 
-        // Map optional fields back to DTO for the edit form [1.2.6]
         dto.setAddress(client.getAddress());
         dto.setCity(client.getCity());
         dto.setContact(client.getContact());
