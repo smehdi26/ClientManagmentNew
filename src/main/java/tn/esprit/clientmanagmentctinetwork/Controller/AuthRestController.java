@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import tn.esprit.clientmanagmentctinetwork.Dto.AdminProfileDto;
 import tn.esprit.clientmanagmentctinetwork.Dto.AdminRegistrationDto;
 import tn.esprit.clientmanagmentctinetwork.Dto.LoginDto;
 import tn.esprit.clientmanagmentctinetwork.Model.AdminModel;
@@ -60,5 +61,37 @@ public class AuthRestController {
         userDetails.put("role", admin.getRole());
 
         return ResponseEntity.ok(userDetails);
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<?> getProfile(@RequestParam("email") String email) {
+        AdminModel admin = adminService.findByEmail(email);
+        if (admin == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(admin);
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(
+            @RequestParam("existingEmail") String existingEmail,
+            @Valid @RequestBody AdminProfileDto dto) { // Updated parameter
+        try {
+            AdminModel updated = adminService.updateProfile(existingEmail, dto);
+
+            // Return updated user details payload
+            Map<String, Object> userDetails = new HashMap<>();
+            userDetails.put("id", updated.getId());
+            userDetails.put("email", updated.getEmail());
+            userDetails.put("firstName", updated.getFirstName());
+            userDetails.put("lastName", updated.getLastName());
+            userDetails.put("role", updated.getRole());
+
+            return ResponseEntity.ok(userDetails);
+        } catch (IllegalStateException e) {
+            Map<String, String> response = new HashMap<>();
+            response.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+        }
     }
 }
