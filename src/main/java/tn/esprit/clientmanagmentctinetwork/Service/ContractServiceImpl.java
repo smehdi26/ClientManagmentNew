@@ -41,7 +41,6 @@ public class ContractServiceImpl implements ContractService {
         contract.setName(dto.getName());
         contract.setRedevance(dto.getRedevance());
         contract.setDateSignature(dto.getDateSignature());
-        contract.setMonthsOfVisits(dto.getMonthsOfVisits());
         contract.setClient(client);
 
         // Auto-calculate Number of Visits (N.D.V) based on Redevance
@@ -58,10 +57,11 @@ public class ContractServiceImpl implements ContractService {
 
         ContractModel saved = contractRepository.save(contract);
 
-        // Log to Notification center
+        // Log notification to Notification Center
         notificationService.createNotification(
                 "New maintenance contract '" + saved.getName() + "' registered for client " + client.getName() + " with " + visits + " annual visits.",
-                "SUCCESS", "CONTRACT"
+                "SUCCESS",
+                "CONTRACT"
         );
 
         return saved;
@@ -78,11 +78,17 @@ public class ContractServiceImpl implements ContractService {
                 .orElseThrow(() -> new IllegalArgumentException("Contract not found"));
         contractRepository.delete(contract);
 
-        // Log termination
+        // Log termination to Notification Center
         notificationService.createNotification(
                 "Maintenance contract '" + contract.getName() + "' for client " + contract.getClient().getName() + " has been terminated.",
-                "DANGER", "CONTRACT"
+                "DANGER",
+                "CONTRACT"
         );
+    }
+
+    @Override
+    public List<ContractModel> getMonthlySchedules(int month, int year) {
+        return contractRepository.findByVisitMonthAndYear(month, year);
     }
 
     @Override
@@ -97,17 +103,81 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
-    public ContractModel updateContractSchedule(Long id, String months) {
-        ContractModel contract = contractRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Contract not found"));
-        contract.setMonthsOfVisits(months);
+    public ContractModel updateContract(Long id, ContractDto dto) {
+        ContractModel contract = getContractById(id);
+        contract.setName(dto.getName());
+        contract.setRedevance(dto.getRedevance());
+        contract.setDateSignature(dto.getDateSignature());
+
+        // Re-calculate visits count in case the redevance has been updated
+        int visits = 0;
+        String redevanceUpper = dto.getRedevance().toUpperCase();
+        if ("ANNUELLE".equals(redevanceUpper)) visits = 6;
+        else if ("SEMESTRIELLE".equals(redevanceUpper)) visits = 2;
+        else if ("TRIMESTRIELLE".equals(redevanceUpper)) visits = 4;
+        contract.setNumberOfVisits(visits);
+
+        return contractRepository.save(contract);
+    }
+
+    @Override
+    public ContractModel updateStatus(Long id, String status) {
+        ContractModel contract = getContractById(id);
+        contract.setStatus(status);
+
+        notificationService.createNotification(
+                "Contract '" + contract.getName() + "' status manually set to " + status + ".",
+                "INFO",
+                "CONTRACT"
+        );
+        return contractRepository.save(contract);
+    }
+
+    @Override
+    public ContractModel renewContract(Long id) {
+        ContractModel contract = getContractById(id);
+
+        LocalDate originalSignature = contract.getDateSignature();
+        if (originalSignature != null) {
+            // Add exactly 1 year to extend the contract [1.1.4]
+            contract.setDateSignature(originalSignature.plusYears(1));
+        }
+
+        // Clear physical date columns so the admin can schedule visits for the new year [1.1.4]
+        contract.setVisitDate1(null);
+        contract.setVisitDate2(null);
+        contract.setVisitDate3(null);
+        contract.setVisitDate4(null);
+        contract.setVisitDate5(null);
+        contract.setVisitDate6(null);
+
+        notificationService.createNotification(
+                "Contract '" + contract.getName() + "' has been successfully RENEWED/EXTENDED to " + contract.getDateSignature() + ".",
+                "SUCCESS",
+                "CONTRACT"
+        );
+
+        return contractRepository.save(contract);
+    }
+
+    @Override
+    public ContractModel updateContractScheduleDates(Long id, List<LocalDate> dates) {
+        ContractModel contract = getContractById(id);
+
+        contract.setVisitDate1(dates.size() > 0 ? dates.get(0) : null);
+        contract.setVisitDate2(dates.size() > 1 ? dates.get(1) : null);
+        contract.setVisitDate3(dates.size() > 2 ? dates.get(2) : null);
+        contract.setVisitDate4(dates.size() > 3 ? dates.get(3) : null);
+        contract.setVisitDate5(dates.size() > 4 ? dates.get(4) : null);
+        contract.setVisitDate6(dates.size() > 5 ? dates.get(5) : null);
 
         ContractModel saved = contractRepository.save(contract);
 
-        // Log notification
+        // Log schedule update to Notification Center
         notificationService.createNotification(
-                "Scheduled visit months for maintenance contract '" + saved.getName() + "' updated to: " + months + ".",
-                "INFO", "CONTRACT"
+                "Scheduled visit dates for contract '" + saved.getName() + "' updated. Active months: " + saved.getMonthsOfVisits() + ".",
+                "INFO",
+                "CONTRACT"
         );
 
         return saved;
@@ -129,20 +199,17 @@ public class ContractServiceImpl implements ContractService {
                 continue;
             }
 
-            // Determine period duration (T) in months based on Redevance
-            int t = 2; // Default for ANNUELLE (6 visits/12 months)
+            int t = 2; // Default for ANNUELLE
             String redevanceUpper = c.getRedevance().toUpperCase();
             if ("SEMESTRIELLE".equals(redevanceUpper)) {
-                t = 6; // (2 visits/12 months)
+                t = 6;
             } else if ("TRIMESTRIELLE".equals(redevanceUpper)) {
-                t = 3; // (4 visits/12 months)
+                t = 3;
             }
 
-            // Calculate months elapsed since signature date
             long monthsElapsed = java.time.temporal.ChronoUnit.MONTHS.between(signature, now);
             int currentPeriod = (int) (monthsElapsed / t) + 1;
 
-            // Extract configured visit count
             String monthsStr = c.getMonthsOfVisits();
             String[] filledMonths = (monthsStr == null || monthsStr.trim().isEmpty()) ? new String[0] : monthsStr.split(", ");
             int filledCount = filledMonths.length;
@@ -190,8 +257,13 @@ public class ContractServiceImpl implements ContractService {
         }
     }
 
+    @Override
+    public ContractModel getContractById(Long id) {
+        return contractRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Contract record not found."));
+    }
+
     private void saveContractNotification(String triggerKey, String message, String type, Long contractId) {
-        // Query first to prevent any database-level unique constraint exceptions! [1.1.2]
         boolean exists = notificationRepository.existsByTriggerKey(triggerKey);
 
         if (!exists) {
@@ -202,68 +274,9 @@ public class ContractServiceImpl implements ContractService {
             notification.setContractId(contractId);
             notification.setCreatedAt(java.time.LocalDateTime.now());
             notification.setReadStatus(false);
+            notification.setCategory("CONTRACT"); // Tag dynamically as CONTRACT
 
             notificationRepository.save(notification);
         }
-    }
-
-    @Override
-    public ContractModel getContractById(Long id) {
-        return contractRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Contract record not found."));
-    }
-
-    @Override
-    public ContractModel updateContract(Long id, ContractDto dto) {
-        ContractModel contract = getContractById(id);
-        contract.setName(dto.getName());
-        contract.setRedevance(dto.getRedevance());
-        contract.setDateSignature(dto.getDateSignature());
-        contract.setMonthsOfVisits(dto.getMonthsOfVisits());
-
-        // Re-calculate visits count
-        int visits = 0;
-        String redevanceUpper = dto.getRedevance().toUpperCase();
-        if ("ANNUELLE".equals(redevanceUpper)) visits = 6;
-        else if ("SEMESTRIELLE".equals(redevanceUpper)) visits = 2;
-        else if ("TRIMESTRIELLE".equals(redevanceUpper)) visits = 4;
-        contract.setNumberOfVisits(visits);
-
-        return contractRepository.save(contract);
-    }
-
-    @Override
-    public ContractModel updateStatus(Long id, String status) {
-        ContractModel contract = getContractById(id);
-        contract.setStatus(status);
-
-        notificationService.createNotification(
-                "Maintenance contract '" + contract.getName() + "' status was set to " + status + ".",
-                "INFO",
-                "CONTRACT"
-        );
-
-        return contractRepository.save(contract);
-    }
-
-    @Override
-    public ContractModel renewContract(Long id) {
-        ContractModel contract = getContractById(id);
-
-        LocalDate originalSignature = contract.getDateSignature();
-        if (originalSignature != null) {
-            // Add exactly 1 year to extend the contract [1.1.4]
-            contract.setDateSignature(originalSignature.plusYears(1));
-        }
-        // Clear old visit schedules for the new contract year [1.1.4]
-        contract.setMonthsOfVisits(null);
-
-        notificationService.createNotification(
-                "Contract '" + contract.getName() + "' has been RENEWED/EXTENDED to " + contract.getDateSignature() + ".",
-                "SUCCESS",
-                "CONTRACT"
-        );
-
-        return contractRepository.save(contract);
     }
 }

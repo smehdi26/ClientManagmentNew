@@ -38,13 +38,17 @@ public class AdminServiceImpl implements AdminService, UserDetailsService {
                 registrationDto.getFirstName(),
                 registrationDto.getLastName(),
                 registrationDto.getEmail(),
-                passwordEncoder.encode(registrationDto.getPassword())
+                passwordEncoder.encode(registrationDto.getPassword()),
+                registrationDto.getRole() // Map the role parameter
         );
         AdminModel saved = adminRepository.save(admin);
 
-        // LOG ACTION (USER CATEGORY) [1.2.6]
+        // Extract clear role name for logging (e.g. "ROLE_HR" -> "HR")
+        String roleName = saved.getRole().replace("ROLE_", "");
+
+        // Log registration [1.2.6]
         notificationService.createNotification(
-                "New administrator account '" + saved.getFirstName() + " " + saved.getLastName() + "' was successfully registered.",
+                "New " + roleName + " account '" + saved.getFirstName() + " " + saved.getLastName() + "' was successfully registered.",
                 "SUCCESS",
                 "USER"
         );

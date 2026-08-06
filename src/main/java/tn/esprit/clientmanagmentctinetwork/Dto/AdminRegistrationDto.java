@@ -28,6 +28,9 @@ public class AdminRegistrationDto {
     @NotBlank(message = "Please confirm your password")
     private String confirmPassword;
 
+    @jakarta.validation.constraints.NotBlank(message = "Role selection is required")
+    private String role; // ROLE_ADMIN, ROLE_HR, ROLE_TECHNICIAN
+
     // Getters and Setters
     public String getFirstName() { return firstName; }
     public void setFirstName(String firstName) { this.firstName = firstName; }
@@ -43,4 +46,7 @@ public class AdminRegistrationDto {
 
     public String getConfirmPassword() { return confirmPassword; }
     public void setConfirmPassword(String confirmPassword) { this.confirmPassword = confirmPassword; }
+
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 }

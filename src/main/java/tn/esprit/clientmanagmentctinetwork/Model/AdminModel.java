@@ -27,11 +27,13 @@ public class AdminModel {
     // Constructors
     public AdminModel() {}
 
-    public AdminModel(String firstName, String lastName, String email, String password) {
+    // Non-default constructor updated to receive role parameter [1.2.6]
+    public AdminModel(String firstName, String lastName, String email, String password, String role) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;
         this.password = password;
+        this.role = role;
     }
 
     // Getters and Setters
