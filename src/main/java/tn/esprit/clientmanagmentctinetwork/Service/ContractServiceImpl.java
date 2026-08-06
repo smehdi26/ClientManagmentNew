@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.clientmanagmentctinetwork.Dto.ContractDto;
 import tn.esprit.clientmanagmentctinetwork.Model.ClientModel;
+import tn.esprit.clientmanagmentctinetwork.Model.ContractHistoryModel;
 import tn.esprit.clientmanagmentctinetwork.Model.ContractModel;
 import tn.esprit.clientmanagmentctinetwork.Model.NotificationModel;
 import tn.esprit.clientmanagmentctinetwork.Repository.ClientRepository;
@@ -92,14 +93,15 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
-    public List<ContractModel> searchAndFilterContracts(String keyword, String redevance) {
+    public List<ContractModel> searchAndFilterContracts(String keyword, String redevance, String status) {
         String cleanKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
         String cleanRedevance = (redevance != null && !redevance.trim().isEmpty()) ? redevance.trim() : null;
+        String cleanStatus = (status != null && !status.trim().isEmpty()) ? status.trim() : null;
 
-        if (cleanKeyword == null && cleanRedevance == null) {
+        if (cleanKeyword == null && cleanRedevance == null && cleanStatus == null) {
             return contractRepository.findAll();
         }
-        return contractRepository.searchAndFilterContracts(cleanKeyword, cleanRedevance);
+        return contractRepository.searchAndFilterContracts(cleanKeyword, cleanRedevance, cleanStatus);
     }
 
     @Override
@@ -136,14 +138,36 @@ public class ContractServiceImpl implements ContractService {
     @Override
     public ContractModel renewContract(Long id) {
         ContractModel contract = getContractById(id);
-
         LocalDate originalSignature = contract.getDateSignature();
+
         if (originalSignature != null) {
-            // Add exactly 1 year to extend the contract [1.1.4]
+            // 1. Compile active date objects into a clean, formatted history string [1.1.4, 1.2.6]
+            java.util.List<String> formattedDates = new java.util.ArrayList<>();
+            java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+            if (contract.getVisitDate1() != null) formattedDates.add(contract.getVisitDate1().format(dtf));
+            if (contract.getVisitDate2() != null) formattedDates.add(contract.getVisitDate2().format(dtf));
+            if (contract.getVisitDate3() != null) formattedDates.add(contract.getVisitDate3().format(dtf));
+            if (contract.getVisitDate4() != null) formattedDates.add(contract.getVisitDate4().format(dtf));
+            if (contract.getVisitDate5() != null) formattedDates.add(contract.getVisitDate5().format(dtf));
+            if (contract.getVisitDate6() != null) formattedDates.add(contract.getVisitDate6().format(dtf));
+
+            String datesString = String.join(", ", formattedDates);
+
+            // 2. Create the permanent contract history record [1.1.4, 1.2.6]
+            ContractHistoryModel historyItem = new ContractHistoryModel();
+            historyItem.setYear(originalSignature.getYear());
+            historyItem.setRedevance(contract.getRedevance());
+            historyItem.setVisitDates(datesString.isEmpty() ? "Aucune visite effectuée" : datesString);
+            historyItem.setContract(contract);
+
+            contract.getHistory().add(historyItem); // Save to historical collection
+
+            // 3. Extend active contract signature by 1 year [1.1.4]
             contract.setDateSignature(originalSignature.plusYears(1));
         }
 
-        // Clear physical date columns so the admin can schedule visits for the new year [1.1.4]
+        // 4. Reset active current-year dates back to null [1.1.4]
         contract.setVisitDate1(null);
         contract.setVisitDate2(null);
         contract.setVisitDate3(null);
@@ -151,13 +175,15 @@ public class ContractServiceImpl implements ContractService {
         contract.setVisitDate5(null);
         contract.setVisitDate6(null);
 
+        ContractModel saved = contractRepository.save(contract);
+
         notificationService.createNotification(
-                "Contract '" + contract.getName() + "' has been successfully RENEWED/EXTENDED to " + contract.getDateSignature() + ".",
+                "Contract '" + saved.getName() + "' successfully RENEWED to " + saved.getDateSignature() + ". Previous year saved to history.",
                 "SUCCESS",
                 "CONTRACT"
         );
 
-        return contractRepository.save(contract);
+        return saved;
     }
 
     @Override

@@ -21,9 +21,10 @@ public interface ContractRepository extends JpaRepository<ContractModel, Long> {
             ")")
     List<ContractModel> findByVisitMonthAndYear(@Param("month") int month, @Param("year") int year);
 
-    // Timezone-safe search query (obsolete c.monthsOfVisits reference removed) [1.2.1]
+    // Dynamic search and status state filtering [1.2.1]
     @Query("SELECT DISTINCT c FROM ContractModel c LEFT JOIN c.client cl WHERE " +
-            "(:redevance IS NULL OR :redevance = '' OR c.redevance = :redevance) AND (" +
+            "(:redevance IS NULL OR :redevance = '' OR c.redevance = :redevance) AND " +
+            "(:status IS NULL OR :status = '' OR c.status = :status) AND (" + // Added status check
             ":keyword IS NULL OR :keyword = '' OR " +
             "LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(cl.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
@@ -31,5 +32,6 @@ public interface ContractRepository extends JpaRepository<ContractModel, Long> {
             ") ORDER BY c.dateSignature DESC")
     List<ContractModel> searchAndFilterContracts(
             @Param("keyword") String keyword,
-            @Param("redevance") String redevance);
+            @Param("redevance") String redevance,
+            @Param("status") String status); // Added parameter
 }

@@ -18,12 +18,13 @@ public class ContractRestController {
         this.contractService = contractService;
     }
 
-    // 1. GET: Fetch all contracts with optional search and filter [1.2.6]
+    // 1. GET: Fetch all contracts with optional search, term, and status filters [1.2.6]
     @GetMapping
     public ResponseEntity<List<ContractModel>> getAllContracts(
             @RequestParam(value = "keyword", required = false) String keyword,
-            @RequestParam(value = "statusFilter", required = false) String redevanceFilter) {
-        return ResponseEntity.ok(contractService.searchAndFilterContracts(keyword, redevanceFilter));
+            @RequestParam(value = "statusFilter", required = false) String redevanceFilter,
+            @RequestParam(value = "activeFilter", required = false) String statusFilter) { // Added parameter
+        return ResponseEntity.ok(contractService.searchAndFilterContracts(keyword, redevanceFilter, statusFilter));
     }
 
     // 2. POST: Register new contract

@@ -11,7 +11,7 @@ public interface ContractService {
     List<ContractModel> getContractsByClientId(Long clientId);
     void deleteContract(Long id);
     List<ContractModel> getMonthlySchedules(int month, int year);
-    List<ContractModel> searchAndFilterContracts(String keyword, String redevance);
+    List<ContractModel> searchAndFilterContracts(String keyword, String redevance, String status);
 
     // ADDED: Fetch contract by ID for the REST controller
     ContractModel getContractById(Long id);

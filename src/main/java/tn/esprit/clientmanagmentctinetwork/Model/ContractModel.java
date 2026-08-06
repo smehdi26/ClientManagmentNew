@@ -37,6 +37,10 @@ public class ContractModel {
     private LocalDate visitDate5;
     private LocalDate visitDate6;
 
+    @OneToMany(mappedBy = "contract", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("year DESC") // Orders history logs with newest year first [1.2.6]
+    private java.util.List<ContractHistoryModel> history = new java.util.ArrayList<>();
+
     @ManyToOne(fetch = FetchType.EAGER) // Eagerly load client profile properties [1.2.6]
     @JoinColumn(name = "client_id", nullable = false)
     private ClientModel client;
@@ -104,4 +108,7 @@ public class ContractModel {
 
     public ClientModel getClient() { return client; }
     public void setClient(ClientModel client) { this.client = client; }
+
+    public java.util.List<ContractHistoryModel> getHistory() { return history; }
+    public void setHistory(java.util.List<ContractHistoryModel> history) { this.history = history; }
 }
