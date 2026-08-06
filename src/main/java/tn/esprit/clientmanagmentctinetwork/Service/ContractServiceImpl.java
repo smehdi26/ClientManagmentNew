@@ -12,6 +12,7 @@ import tn.esprit.clientmanagmentctinetwork.Repository.ClientRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.ContractRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.NotificationRepository;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -283,60 +284,100 @@ public class ContractServiceImpl implements ContractService {
                 continue;
             }
 
-            int t = 2; // Default for ANNUELLE
+            // Corrected: ANNUELLE (6 visits/year) maps to exactly 2 months interval length [1.1.4]
+            int pLen = 2; // Default for ANNUELLE
             String redevanceUpper = c.getRedevance().toUpperCase();
             if ("SEMESTRIELLE".equals(redevanceUpper)) {
-                t = 6;
+                pLen = 6; // (2 visits/year = 1 visit every 6 months)
             } else if ("TRIMESTRIELLE".equals(redevanceUpper)) {
-                t = 3;
+                pLen = 3; // (4 visits/year = 1 visit every 3 months)
             }
 
+            // Calculate active cycle index (1-based)
             long monthsElapsed = java.time.temporal.ChronoUnit.MONTHS.between(signature, now);
-            int currentPeriod = (int) (monthsElapsed / t) + 1;
+            int currentCycle = (int) (monthsElapsed / pLen) + 1;
 
-            String monthsStr = c.getMonthsOfVisits();
-            String[] filledMonths = (monthsStr == null || monthsStr.trim().isEmpty()) ? new String[0] : monthsStr.split(", ");
-            int filledCount = filledMonths.length;
+            // Determine cycle date boundaries
+            LocalDate cycleStart = signature.plusMonths((long) (currentCycle - 1) * pLen);
+            LocalDate cycleEnd = signature.plusMonths((long) currentCycle * pLen);
 
-            // Rule 1: Contract has started - Period 1 Notification
-            if (currentPeriod == 1 && filledCount == 0) {
-                String trigger = "CONTRACT_START_" + c.getId();
-                saveContractNotification(trigger,
-                        "Contract '" + c.getName() + "' has started. You are in the period of the first scheduled visit. Please contact client " + c.getClient().getName() + " (" + c.getClient().getPrimaryPhoneNumber() + ").",
-                        "INFO", c.getId());
-            }
+            long totalDays = java.time.temporal.ChronoUnit.DAYS.between(cycleStart, cycleEnd);
+            long daysElapsed = java.time.temporal.ChronoUnit.DAYS.between(cycleStart, now);
 
-            // Rule 2: 1 Month before period ends, and the current period slot has not been scheduled yet
-            if (currentPeriod <= totalVisits) {
-                LocalDate periodEnd = signature.plusMonths(currentPeriod * t);
-                LocalDate warningStart = periodEnd.minusMonths(1);
+            // Extract scheduled dates safely [1.1.1]
+            List<LocalDate> scheduledDates = new ArrayList<>();
+            if (c.getVisitDate1() != null) scheduledDates.add(c.getVisitDate1());
+            if (c.getVisitDate2() != null) scheduledDates.add(c.getVisitDate2());
+            if (c.getVisitDate3() != null) scheduledDates.add(c.getVisitDate3());
+            if (c.getVisitDate4() != null) scheduledDates.add(c.getVisitDate4());
+            if (c.getVisitDate5() != null) scheduledDates.add(c.getVisitDate5());
+            if (c.getVisitDate6() != null) scheduledDates.add(c.getVisitDate6());
 
-                if ((now.isAfter(warningStart) || now.isEqual(warningStart)) && now.isBefore(periodEnd)) {
-                    if (filledCount < currentPeriod) {
-                        String trigger = "CONTRACT_WARNING_PERIOD_" + currentPeriod + "_" + c.getId();
-                        saveContractNotification(trigger,
-                                "Reminder: Maintenance contract '" + c.getName() + "' (Period " + currentPeriod + ") ends on " + periodEnd + ". Please visit client " + c.getClient().getName() + " and register this visit month.",
-                                "WARNING", c.getId());
-                    }
+            int filledCount = scheduledDates.size();
+
+            // 1. CRITICAL OVERDUE CASE: Check if previous period's required visit was missed
+            if (currentCycle > 1) {
+                int previousIndex = currentCycle - 2; // 0-based
+                if (scheduledDates.size() <= previousIndex || scheduledDates.get(previousIndex) == null) {
+                    String triggerKey = "CONTRACT_OVERDUE_" + (currentCycle - 1) + "_" + c.getId();
+                    notificationService.createDetailedNotification(
+                            "Critical Overdue Alert",
+                            "Critical: The visit for contract '" + c.getName() + "' (Period " + (currentCycle - 1) + ") was not completed. The contract has entered the next visit period. Immediate intervention is required.",
+                            "DANGER", "CONTRACT", "OVERDUE", "RED", "CRITICAL", triggerKey, c.getId()
+                    );
                 }
             }
 
-            // Rule 3: All visits are fully configured and completed
+            // 2. ACTIVE CYCLE EVALUATION (If visit for the current cycle is not scheduled yet)
+            int currentIdx = currentCycle - 1;
+            if (scheduledDates.size() <= currentIdx || scheduledDates.get(currentIdx) == null) {
+                double ratio = (double) daysElapsed / totalDays;
+                String triggerKey = "CONTRACT_CYCLE_" + currentCycle + "_STATE_" + c.getId();
+
+                if (ratio < 1.0 / 3.0) {
+                    // Safe Period (First third)
+                    notificationService.createDetailedNotification(
+                            "Visit Period Active",
+                            "The visit period " + currentCycle + " for contract '" + c.getName() + "' is active. The client can schedule the visit normally.",
+                            "SUCCESS", "CONTRACT", "SAFE", "GREEN", "LOW", triggerKey, c.getId()
+                    );
+                } else if (ratio < 2.0 / 3.0) {
+                    // Reminder Period (Second third)
+                    notificationService.createDetailedNotification(
+                            "Visit Reminder",
+                            "Reminder: The scheduled visit " + currentCycle + " for contract '" + c.getName() + "' should be completed soon.",
+                            "WARNING", "CONTRACT", "REMINDER", "YELLOW", "MEDIUM", triggerKey, c.getId()
+                    );
+                } else if (ratio < 1.0) {
+                    // Urgent Period (Final third)
+                    notificationService.createDetailedNotification(
+                            "Urgent Visit Deadline",
+                            "Urgent: The visit deadline " + currentCycle + " for contract '" + c.getName() + "' is approaching. Immediate action is required.",
+                            "DANGER", "CONTRACT", "URGENT", "RED", "HIGH", triggerKey, c.getId()
+                    );
+                }
+            }
+
+            // 3. NEW BILLING/FACTURATION WARNING (Fired if all planned visits are completed) [1.1.4, 1.2.6]
             if (filledCount == totalVisits) {
-                String trigger = "CONTRACT_DONE_" + c.getId();
-                saveContractNotification(trigger,
-                        "Success: All " + totalVisits + " scheduled visits for maintenance contract '" + c.getName() + "' have been fully completed.",
-                        "SUCCESS", c.getId());
-            }
+                String triggerKey = "CONTRACT_BILLING_" + currentCycle + "_" + c.getId();
 
-            // Rule 4: Missed period - current period exceeds filled count
-            if (currentPeriod > 1 && currentPeriod <= totalVisits) {
-                if (filledCount < currentPeriod - 1) {
-                    String trigger = "CONTRACT_MISSED_PERIOD_" + currentPeriod + "_" + c.getId();
-                    saveContractNotification(trigger,
-                            "Urgent: A scheduled visit period was missed for contract '" + c.getName() + "' of client " + c.getClient().getName() + ". Please schedule a visit immediately.",
-                            "DANGER", c.getId());
-                }
+                // Retrieve completion date of the last visit safely [1.1.1]
+                LocalDate lastVisitDate = signature;
+                if (totalVisits == 6 && c.getVisitDate6() != null) lastVisitDate = c.getVisitDate6();
+                else if (totalVisits == 4 && c.getVisitDate4() != null) lastVisitDate = c.getVisitDate4();
+                else if (totalVisits == 2 && c.getVisitDate2() != null) lastVisitDate = c.getVisitDate2();
+
+                String message = String.format(
+                        "Toutes les visites prévues pour le contrat %s ont été réalisées. Le client %s (Code: %s) est prêt pour la facturation. (Nombre de visites: %d, Période concernée: %d, Dernière visite: %s, Prêt le: %s).",
+                        c.getName(), c.getClient().getName(), c.getClient().getClientCode(), totalVisits, currentCycle, lastVisitDate, now
+                );
+
+                notificationService.createDetailedNotification(
+                        "Client prêt pour la facturation",
+                        message,
+                        "INFO", "CONTRACT", "READY_FOR_BILLING", "BLUE", "MEDIUM", triggerKey, c.getId()
+                );
             }
         }
     }

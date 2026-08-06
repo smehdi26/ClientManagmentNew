@@ -35,6 +35,12 @@ public class NotificationModel {
     @Column(nullable = false)
     private String category = "CLIENT"; // CLIENT, CONTRACT, RESERVATION
 
+    private String title;
+    private String statusLevel; // SAFE, REMINDER, URGENT, OVERDUE
+    private String color;       // GREEN, YELLOW, RED
+    private String priority;    // LOW, MEDIUM, HIGH, CRITICAL
+
+
     // Constructors
     public NotificationModel() {}
 
@@ -65,4 +71,16 @@ public class NotificationModel {
 
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
+
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
+
+    public String getStatusLevel() { return statusLevel; }
+    public void setStatusLevel(String statusLevel) { this.statusLevel = statusLevel; }
+
+    public String getColor() { return color; }
+    public void setColor(String color) { this.color = color; }
+
+    public String getPriority() { return priority; }
+    public void setPriority(String priority) { this.priority = priority; }
 }

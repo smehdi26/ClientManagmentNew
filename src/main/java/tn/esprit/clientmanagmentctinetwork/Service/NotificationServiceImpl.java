@@ -59,14 +59,37 @@ public class NotificationServiceImpl implements NotificationService {
         String dateStr = java.time.LocalDate.now().toString(); // Format: YYYY-MM-DD
         boolean alreadyLogged = notificationRepository.existsDailySummaryForDate(dateStr);
         if (!alreadyLogged) {
-            createNotification(
+            // Updated call using the master detailed logger for consistency
+            this.createDetailedNotification(
+                    "Daily Agenda Summary",
                     "Daily Agenda Summary: You have " + count + " active reservations scheduled for today (" + dateStr + ").",
-                    "INFO"
+                    "INFO", "CLIENT", "SAFE", "GREEN", "LOW",
+                    "DAILY_SUMMARY_" + dateStr, null
             );
         }
     }
 
-
+    @Override
+    public void createDetailedNotification(String title, String message, String type, String category,
+                                           String statusLevel, String color, String priority,
+                                           String triggerKey, Long contractId) {
+        boolean exists = notificationRepository.existsByTriggerKey(triggerKey);
+        if (!exists) {
+            NotificationModel notification = new NotificationModel();
+            notification.setTriggerKey(triggerKey);
+            notification.setTitle(title);
+            notification.setMessage(message);
+            notification.setType(type);
+            notification.setCategory(category);
+            notification.setStatusLevel(statusLevel);
+            notification.setColor(color);
+            notification.setPriority(priority);
+            notification.setContractId(contractId);
+            notification.setCreatedAt(LocalDateTime.now());
+            notification.setReadStatus(false);
+            notificationRepository.save(notification);
+        }
+    }
 
     @Override
     public void deleteNotification(Long id) {
