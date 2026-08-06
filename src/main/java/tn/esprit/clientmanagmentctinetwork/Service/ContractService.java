@@ -20,7 +20,6 @@ public interface ContractService {
     ContractModel updateContract(Long id, ContractDto dto);
     ContractModel updateStatus(Long id, String status);
     ContractModel renewContract(Long id);
-    ContractModel updateContractScheduleDates(Long id, List<LocalDate> dates);
-
+    ContractModel updateContractScheduleDates(Long id, List<tn.esprit.clientmanagmentctinetwork.Dto.VisitScheduleDto> visits);
     void checkContractNotifications();
 }

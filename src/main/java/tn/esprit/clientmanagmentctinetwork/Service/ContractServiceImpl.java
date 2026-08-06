@@ -3,16 +3,21 @@ package tn.esprit.clientmanagmentctinetwork.Service;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.clientmanagmentctinetwork.Dto.ContractDto;
+import tn.esprit.clientmanagmentctinetwork.Dto.VisitScheduleDto;
 import tn.esprit.clientmanagmentctinetwork.Model.ClientModel;
-import tn.esprit.clientmanagmentctinetwork.Model.ContractHistoryModel;
 import tn.esprit.clientmanagmentctinetwork.Model.ContractModel;
+import tn.esprit.clientmanagmentctinetwork.Model.ContractHistoryModel;
 import tn.esprit.clientmanagmentctinetwork.Model.NotificationModel;
 import tn.esprit.clientmanagmentctinetwork.Repository.ClientRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.ContractRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.NotificationRepository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -186,16 +191,26 @@ public class ContractServiceImpl implements ContractService {
         return saved;
     }
 
+    // UPDATED: Correctly maps parameterized list parameters matching your interface [1.2.1, 1.2.6]
     @Override
-    public ContractModel updateContractScheduleDates(Long id, List<LocalDate> dates) {
+    public ContractModel updateContractScheduleDates(Long id, List<VisitScheduleDto> visits) {
         ContractModel contract = getContractById(id);
 
-        contract.setVisitDate1(dates.size() > 0 ? dates.get(0) : null);
-        contract.setVisitDate2(dates.size() > 1 ? dates.get(1) : null);
-        contract.setVisitDate3(dates.size() > 2 ? dates.get(2) : null);
-        contract.setVisitDate4(dates.size() > 3 ? dates.get(3) : null);
-        contract.setVisitDate5(dates.size() > 4 ? dates.get(4) : null);
-        contract.setVisitDate6(dates.size() > 5 ? dates.get(5) : null);
+        // Reset all active date and file columns
+        contract.setVisitDate1(null); contract.setVisitFile1(null); contract.setVisitFileName1(null);
+        contract.setVisitDate2(null); contract.setVisitFile2(null); contract.setVisitFileName2(null);
+        contract.setVisitDate3(null); contract.setVisitFile3(null); contract.setVisitFileName3(null);
+        contract.setVisitDate4(null); contract.setVisitFile4(null); contract.setVisitFileName4(null);
+        contract.setVisitDate5(null); contract.setVisitFile5(null); contract.setVisitFileName5(null);
+        contract.setVisitDate6(null); contract.setVisitFile6(null); contract.setVisitFileName6(null);
+
+        // Map elements sequentially
+        if (visits.size() > 0) mapVisit1(contract, visits.get(0));
+        if (visits.size() > 1) mapVisit2(contract, visits.get(1));
+        if (visits.size() > 2) mapVisit3(contract, visits.get(2));
+        if (visits.size() > 3) mapVisit4(contract, visits.get(3));
+        if (visits.size() > 4) mapVisit5(contract, visits.get(4));
+        if (visits.size() > 5) mapVisit6(contract, visits.get(5));
 
         ContractModel saved = contractRepository.save(contract);
 
@@ -207,6 +222,49 @@ public class ContractServiceImpl implements ContractService {
         );
 
         return saved;
+    }
+
+    private void mapVisit1(ContractModel c, VisitScheduleDto dto) {
+        if (dto.getDate() != null && !dto.getDate().trim().isEmpty()) {
+            c.setVisitDate1(LocalDate.parse(dto.getDate().trim()));
+            c.setVisitFile1(dto.getFilePath());
+            c.setVisitFileName1(dto.getFileName());
+        }
+    }
+    private void mapVisit2(ContractModel c, VisitScheduleDto dto) {
+        if (dto.getDate() != null && !dto.getDate().trim().isEmpty()) {
+            c.setVisitDate2(LocalDate.parse(dto.getDate().trim()));
+            c.setVisitFile2(dto.getFilePath());
+            c.setVisitFileName2(dto.getFileName());
+        }
+    }
+    private void mapVisit3(ContractModel c, VisitScheduleDto dto) {
+        if (dto.getDate() != null && !dto.getDate().trim().isEmpty()) {
+            c.setVisitDate3(LocalDate.parse(dto.getDate().trim()));
+            c.setVisitFile3(dto.getFilePath());
+            c.setVisitFileName3(dto.getFileName());
+        }
+    }
+    private void mapVisit4(ContractModel c, VisitScheduleDto dto) {
+        if (dto.getDate() != null && !dto.getDate().trim().isEmpty()) {
+            c.setVisitDate4(LocalDate.parse(dto.getDate().trim()));
+            c.setVisitFile4(dto.getFilePath());
+            c.setVisitFileName4(dto.getFileName());
+        }
+    }
+    private void mapVisit5(ContractModel c, VisitScheduleDto dto) {
+        if (dto.getDate() != null && !dto.getDate().trim().isEmpty()) {
+            c.setVisitDate5(LocalDate.parse(dto.getDate().trim()));
+            c.setVisitFile5(dto.getFilePath());
+            c.setVisitFileName5(dto.getFileName());
+        }
+    }
+    private void mapVisit6(ContractModel c, VisitScheduleDto dto) {
+        if (dto.getDate() != null && !dto.getDate().trim().isEmpty()) {
+            c.setVisitDate6(LocalDate.parse(dto.getDate().trim()));
+            c.setVisitFile6(dto.getFilePath());
+            c.setVisitFileName6(dto.getFileName());
+        }
     }
 
     @Override
