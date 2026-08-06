@@ -20,4 +20,6 @@ public interface ReservationService {
     void updateReservationStatus(Long id, String status);
     long countTodayReservations();
     List<ReservationModel> getUpcomingAlerts();
-    List<ReservationModel> searchAndFilterReservations(String keyword, String status);}
+    List<ReservationModel> searchAndFilterReservations(String keyword, String status);
+    void deleteReservation(Long id);
+}

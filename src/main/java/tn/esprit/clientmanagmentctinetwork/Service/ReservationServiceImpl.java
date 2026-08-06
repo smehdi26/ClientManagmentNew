@@ -4,9 +4,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.clientmanagmentctinetwork.Dto.ReservationDto;
 import tn.esprit.clientmanagmentctinetwork.Dto.TimeSlot;
+import tn.esprit.clientmanagmentctinetwork.Model.AdminModel;
 import tn.esprit.clientmanagmentctinetwork.Model.ClientModel;
 import tn.esprit.clientmanagmentctinetwork.Model.ReservationModel;
 import tn.esprit.clientmanagmentctinetwork.Model.NotificationModel;
+import tn.esprit.clientmanagmentctinetwork.Repository.AdminRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.ClientRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.ReservationRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.NotificationRepository; // Added import
@@ -26,17 +28,20 @@ public class ReservationServiceImpl implements ReservationService {
     private final ReservationRepository reservationRepository;
     private final ClientRepository clientRepository;
     private final NotificationService notificationService;
-    private final NotificationRepository notificationRepository; // Added dependency
+    private final NotificationRepository notificationRepository;
+    private final AdminRepository adminRepository; // Added dependency [1.2.6]
 
-    // Inject all required dependencies
+    // Constructor injecting all dependencies including AdminRepository
     public ReservationServiceImpl(ReservationRepository reservationRepository,
                                   ClientRepository clientRepository,
                                   NotificationService notificationService,
-                                  NotificationRepository notificationRepository) { // Added parameter
+                                  NotificationRepository notificationRepository,
+                                  AdminRepository adminRepository) { // Added parameter [1.2.6]
         this.reservationRepository = reservationRepository;
         this.clientRepository = clientRepository;
         this.notificationService = notificationService;
-        this.notificationRepository = notificationRepository; // Added mapping
+        this.notificationRepository = notificationRepository;
+        this.adminRepository = adminRepository; // Added mapping
     }
 
     @Override
@@ -52,18 +57,25 @@ public class ReservationServiceImpl implements ReservationService {
                 .orElseThrow(() -> new IllegalArgumentException("Client not found"));
 
         ReservationModel reservation = new ReservationModel();
-        reservation.setName(dto.getName()); // Map the name
+        reservation.setName(dto.getName());
         reservation.setClient(client);
         reservation.setReservationTime(bookingTime);
         reservation.setDescription(dto.getDescription());
         reservation.setStatus("UNTREATED");
 
+        // Set the assigned IT Technician [1.2.6]
+        if (dto.getTechnicianId() != null) {
+            AdminModel technician = adminRepository.findById(dto.getTechnicianId())
+                    .orElseThrow(() -> new IllegalArgumentException("IT Technician not found"));
+            reservation.setTechnician(technician);
+        }
+
         ReservationModel saved = reservationRepository.save(reservation);
 
-        // Log action with custom meeting name to Notification Center
         notificationService.createNotification(
                 "New meeting '" + saved.getName() + "' scheduled for client " + client.getName() + " on " + dto.getDate() + " at " + dto.getTime() + ".",
-                "SUCCESS",  "RESERVATION"
+                "SUCCESS",
+                "RESERVATION"
         );
 
         return saved;
@@ -240,6 +252,19 @@ public class ReservationServiceImpl implements ReservationService {
                 searchMinute,
                 searchDateStart,
                 searchDateEnd
+        );
+    }
+
+    @Override
+    public void deleteReservation(Long id) {
+        ReservationModel reservation = reservationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
+        reservationRepository.delete(reservation);
+
+        notificationService.createNotification(
+                "Reservation/Meeting '" + reservation.getName() + "' has been permanently deleted.",
+                "DANGER",
+                "RESERVATION"
         );
     }
 }

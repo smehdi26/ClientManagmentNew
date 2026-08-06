@@ -83,4 +83,11 @@ public class ReservationRestController {
     public ResponseEntity<List<ReservationModel>> getUpcomingAlerts() {
         return ResponseEntity.ok(reservationService.getUpcomingAlerts());
     }
+
+    // DELETE: Permanently delete/cancel reservation [1.2.6]
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteReservation(@PathVariable Long id) {
+        reservationService.deleteReservation(id);
+        return ResponseEntity.noContent().build();
+    }
 }

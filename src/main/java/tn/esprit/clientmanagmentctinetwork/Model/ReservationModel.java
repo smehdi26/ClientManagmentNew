@@ -30,6 +30,9 @@ public class ReservationModel {
     @Column(name = "cancellation_reason", columnDefinition = "TEXT")
     private String cancellationReason;
 
+    @ManyToOne(fetch = FetchType.EAGER) // Fetch eagerly so the technician details load automatically [1.2.6]
+    @JoinColumn(name = "technician_id")
+    private AdminModel technician; // Assigned IT Technician
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -52,4 +55,7 @@ public class ReservationModel {
 
     public String getCancellationReason() { return cancellationReason; }
     public void setCancellationReason(String cancellationReason) { this.cancellationReason = cancellationReason; }
+
+    public AdminModel getTechnician() { return technician; }
+    public void setTechnician(AdminModel technician) { this.technician = technician; }
 }

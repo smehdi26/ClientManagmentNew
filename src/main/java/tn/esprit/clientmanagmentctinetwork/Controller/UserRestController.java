@@ -38,4 +38,10 @@ public class UserRestController {
         adminRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }
+
+    // GET: List all registered IT Technicians [1.2.6]
+    @GetMapping("/technicians")
+    public ResponseEntity<List<AdminModel>> getTechnicians() {
+        return ResponseEntity.ok(adminRepository.findByRole("ROLE_TECHNICIAN"));
+    }
 }

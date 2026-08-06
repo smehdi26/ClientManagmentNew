@@ -23,6 +23,9 @@ public class ReservationDto {
 
     private String description;
 
+    private Long technicianId;
+
+
     // Getters and Setters
     public Long getClientId() { return clientId; }
     public void setClientId(Long clientId) { this.clientId = clientId; }
@@ -38,4 +41,7 @@ public class ReservationDto {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public Long getTechnicianId() { return technicianId; }
+    public void setTechnicianId(Long technicianId) { this.technicianId = technicianId; }
 }
