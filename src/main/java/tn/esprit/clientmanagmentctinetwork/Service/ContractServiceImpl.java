@@ -12,7 +12,6 @@ import tn.esprit.clientmanagmentctinetwork.Repository.ClientRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.ContractRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.NotificationRepository;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -64,11 +63,14 @@ public class ContractServiceImpl implements ContractService {
 
         ContractModel saved = contractRepository.save(contract);
 
-        // Log notification to Notification Center
-        notificationService.createNotification(
+        String primaryPhone = client.getPrimaryPhoneNumber();
+
+        // Log notification to Notification Center with 10-parameter signature [1.2.1, 1.2.6]
+        notificationService.createDetailedNotification(
+                "Nouveau contrat",
                 "New maintenance contract '" + saved.getName() + "' registered for client " + client.getName() + " with " + visits + " annual visits.",
-                "SUCCESS",
-                "CONTRACT"
+                "SUCCESS", "CONTRACT", "SAFE", "GREEN", "LOW",
+                "CONTRACT_CREATION_" + saved.getId(), saved.getId(), primaryPhone
         );
 
         return saved;
@@ -85,11 +87,14 @@ public class ContractServiceImpl implements ContractService {
                 .orElseThrow(() -> new IllegalArgumentException("Contract not found"));
         contractRepository.delete(contract);
 
-        // Log termination to Notification Center
-        notificationService.createNotification(
+        String primaryPhone = contract.getClient() != null ? contract.getClient().getPrimaryPhoneNumber() : null;
+
+        // Log termination to Notification Center with 10-parameter signature [1.2.1, 1.2.6]
+        notificationService.createDetailedNotification(
+                "Contrat résilié",
                 "Maintenance contract '" + contract.getName() + "' for client " + contract.getClient().getName() + " has been terminated.",
-                "DANGER",
-                "CONTRACT"
+                "DANGER", "CONTRACT", "SAFE", "GREEN", "LOW",
+                "CONTRACT_TERMINATION_" + contract.getId(), contract.getId(), primaryPhone
         );
     }
 
@@ -133,10 +138,13 @@ public class ContractServiceImpl implements ContractService {
         ContractModel contract = getContractById(id);
         contract.setStatus(status);
 
-        notificationService.createNotification(
+        String primaryPhone = contract.getClient() != null ? contract.getClient().getPrimaryPhoneNumber() : null;
+
+        notificationService.createDetailedNotification(
+                "Statut du contrat modifié",
                 "Contract '" + contract.getName() + "' status manually set to " + status + ".",
-                "INFO",
-                "CONTRACT"
+                "INFO", "CONTRACT", "SAFE", "GREEN", "LOW",
+                "CONTRACT_STATUS_" + contract.getId() + "_" + System.currentTimeMillis(), contract.getId(), primaryPhone
         );
         return contractRepository.save(contract);
     }
@@ -182,11 +190,13 @@ public class ContractServiceImpl implements ContractService {
         contract.setVisitDate6(null);
 
         ContractModel saved = contractRepository.save(contract);
+        String primaryPhone = saved.getClient() != null ? saved.getClient().getPrimaryPhoneNumber() : null;
 
-        notificationService.createNotification(
+        notificationService.createDetailedNotification(
+                "Contrat renouvelé",
                 "Contract '" + saved.getName() + "' successfully RENEWED to " + saved.getDateSignature() + ". Previous year saved to history.",
-                "SUCCESS",
-                "CONTRACT"
+                "SUCCESS", "CONTRACT", "SAFE", "GREEN", "LOW",
+                "CONTRACT_RENEW_" + saved.getId(), saved.getId(), primaryPhone
         );
 
         return saved;
@@ -214,12 +224,14 @@ public class ContractServiceImpl implements ContractService {
         if (visits.size() > 5) mapVisit6(contract, visits.get(5));
 
         ContractModel saved = contractRepository.save(contract);
+        String primaryPhone = saved.getClient() != null ? saved.getClient().getPrimaryPhoneNumber() : null;
 
         // Log schedule update to Notification Center
-        notificationService.createNotification(
+        notificationService.createDetailedNotification(
+                "Dates des visites planifiées",
                 "Scheduled visit dates for contract '" + saved.getName() + "' updated. Active months: " + saved.getMonthsOfVisits() + ".",
-                "INFO",
-                "CONTRACT"
+                "INFO", "CONTRACT", "SAFE", "GREEN", "LOW",
+                "CONTRACT_SCHEDULE_" + saved.getId() + "_" + System.currentTimeMillis(), saved.getId(), primaryPhone
         );
 
         return saved;
@@ -304,7 +316,7 @@ public class ContractServiceImpl implements ContractService {
             long totalDays = java.time.temporal.ChronoUnit.DAYS.between(cycleStart, cycleEnd);
             long daysElapsed = java.time.temporal.ChronoUnit.DAYS.between(cycleStart, now);
 
-            // Extract scheduled dates safely [1.1.1]
+            // Extract scheduled dates safely
             List<LocalDate> scheduledDates = new ArrayList<>();
             if (c.getVisitDate1() != null) scheduledDates.add(c.getVisitDate1());
             if (c.getVisitDate2() != null) scheduledDates.add(c.getVisitDate2());
@@ -314,6 +326,7 @@ public class ContractServiceImpl implements ContractService {
             if (c.getVisitDate6() != null) scheduledDates.add(c.getVisitDate6());
 
             int filledCount = scheduledDates.size();
+            String phone = (c.getClient() != null) ? c.getClient().getPrimaryPhoneNumber() : null;
 
             // 1. CRITICAL OVERDUE CASE: Check if previous period's required visit was missed
             if (currentCycle > 1) {
@@ -323,7 +336,7 @@ public class ContractServiceImpl implements ContractService {
                     notificationService.createDetailedNotification(
                             "Critical Overdue Alert",
                             "Critical: The visit for contract '" + c.getName() + "' (Period " + (currentCycle - 1) + ") was not completed. The contract has entered the next visit period. Immediate intervention is required.",
-                            "DANGER", "CONTRACT", "OVERDUE", "RED", "CRITICAL", triggerKey, c.getId()
+                            "DANGER", "CONTRACT", "OVERDUE", "RED", "CRITICAL", triggerKey, c.getId(), phone
                     );
                 }
             }
@@ -339,21 +352,21 @@ public class ContractServiceImpl implements ContractService {
                     notificationService.createDetailedNotification(
                             "Visit Period Active",
                             "The visit period " + currentCycle + " for contract '" + c.getName() + "' is active. The client can schedule the visit normally.",
-                            "SUCCESS", "CONTRACT", "SAFE", "GREEN", "LOW", triggerKey, c.getId()
+                            "SUCCESS", "CONTRACT", "SAFE", "GREEN", "LOW", triggerKey, c.getId(), phone
                     );
                 } else if (ratio < 2.0 / 3.0) {
                     // Reminder Period (Second third)
                     notificationService.createDetailedNotification(
                             "Visit Reminder",
                             "Reminder: The scheduled visit " + currentCycle + " for contract '" + c.getName() + "' should be completed soon.",
-                            "WARNING", "CONTRACT", "REMINDER", "YELLOW", "MEDIUM", triggerKey, c.getId()
+                            "WARNING", "CONTRACT", "REMINDER", "YELLOW", "MEDIUM", triggerKey, c.getId(), phone
                     );
                 } else if (ratio < 1.0) {
                     // Urgent Period (Final third)
                     notificationService.createDetailedNotification(
                             "Urgent Visit Deadline",
                             "Urgent: The visit deadline " + currentCycle + " for contract '" + c.getName() + "' is approaching. Immediate action is required.",
-                            "DANGER", "CONTRACT", "URGENT", "RED", "HIGH", triggerKey, c.getId()
+                            "DANGER", "CONTRACT", "URGENT", "RED", "HIGH", triggerKey, c.getId(), phone
                     );
                 }
             }
@@ -362,7 +375,7 @@ public class ContractServiceImpl implements ContractService {
             if (filledCount == totalVisits) {
                 String triggerKey = "CONTRACT_BILLING_" + currentCycle + "_" + c.getId();
 
-                // Retrieve completion date of the last visit safely [1.1.1]
+                // Retrieve completion date of the last visit safely
                 LocalDate lastVisitDate = signature;
                 if (totalVisits == 6 && c.getVisitDate6() != null) lastVisitDate = c.getVisitDate6();
                 else if (totalVisits == 4 && c.getVisitDate4() != null) lastVisitDate = c.getVisitDate4();
@@ -376,7 +389,7 @@ public class ContractServiceImpl implements ContractService {
                 notificationService.createDetailedNotification(
                         "Client prêt pour la facturation",
                         message,
-                        "INFO", "CONTRACT", "READY_FOR_BILLING", "BLUE", "MEDIUM", triggerKey, c.getId()
+                        "INFO", "CONTRACT", "READY_FOR_BILLING", "BLUE", "MEDIUM", triggerKey, c.getId(), phone // Added 'phone' as the 10th parameter [1.2.1]
                 );
             }
         }
@@ -392,11 +405,15 @@ public class ContractServiceImpl implements ContractService {
         boolean exists = notificationRepository.existsByTriggerKey(triggerKey);
 
         if (!exists) {
+            ContractModel c = contractRepository.findById(contractId).orElse(null);
+            String phone = (c != null && c.getClient() != null) ? c.getClient().getPrimaryPhoneNumber() : null;
+
             NotificationModel notification = new NotificationModel();
             notification.setTriggerKey(triggerKey);
             notification.setMessage(message);
             notification.setType(type);
             notification.setContractId(contractId);
+            notification.setClientPhone(phone); // Map client phone redirection reference [1.2.6]
             notification.setCreatedAt(java.time.LocalDateTime.now());
             notification.setReadStatus(false);
             notification.setCategory("CONTRACT"); // Tag dynamically as CONTRACT

@@ -20,16 +20,15 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public void createNotification(String message, String type, String category) {
-        NotificationModel notification = new NotificationModel();
-        notification.setMessage(message);
-        notification.setType(type);
-        notification.setCategory(category); // Save the category
-        notification.setCreatedAt(LocalDateTime.now());
-        notification.setReadStatus(false);
-        notificationRepository.save(notification);
+        // Updated to use the master detailed mapper with default null redirection parameters
+        this.createDetailedNotification(
+                "System Event", message, type, category,
+                "SAFE", "GREEN", "LOW",
+                System.currentTimeMillis() + "_" + message.hashCode(), null, null
+        );
     }
 
-    // Overload for backward compatibility with older logs
+    // Overload for backward compatibility
     @Override
     public void createNotification(String message, String type) {
         this.createNotification(message, type, "CLIENT");
@@ -59,20 +58,20 @@ public class NotificationServiceImpl implements NotificationService {
         String dateStr = java.time.LocalDate.now().toString(); // Format: YYYY-MM-DD
         boolean alreadyLogged = notificationRepository.existsDailySummaryForDate(dateStr);
         if (!alreadyLogged) {
-            // Updated call using the master detailed logger for consistency
             this.createDetailedNotification(
                     "Daily Agenda Summary",
                     "Daily Agenda Summary: You have " + count + " active reservations scheduled for today (" + dateStr + ").",
                     "INFO", "CLIENT", "SAFE", "GREEN", "LOW",
-                    "DAILY_SUMMARY_" + dateStr, null
+                    "DAILY_SUMMARY_" + dateStr, null, null
             );
         }
     }
 
+    // Master detailed logger containing exact database checks to prevent duplicate alerts [1.1.2, 1.2.6]
     @Override
     public void createDetailedNotification(String title, String message, String type, String category,
                                            String statusLevel, String color, String priority,
-                                           String triggerKey, Long contractId) {
+                                           String triggerKey, Long contractId, String clientPhone) {
         boolean exists = notificationRepository.existsByTriggerKey(triggerKey);
         if (!exists) {
             NotificationModel notification = new NotificationModel();
@@ -85,6 +84,7 @@ public class NotificationServiceImpl implements NotificationService {
             notification.setColor(color);
             notification.setPriority(priority);
             notification.setContractId(contractId);
+            notification.setClientPhone(clientPhone); // Store client phone redirection reference
             notification.setCreatedAt(LocalDateTime.now());
             notification.setReadStatus(false);
             notificationRepository.save(notification);

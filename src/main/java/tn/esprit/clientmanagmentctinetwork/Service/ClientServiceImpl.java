@@ -21,7 +21,7 @@ public class ClientServiceImpl implements ClientService {
     private final ClientRepository clientRepository;
     private final ClientPhoneRepository clientPhoneRepository;
     private final SectorRepository sectorRepository;
-    private final NotificationService notificationService; // Inject NotificationService
+    private final NotificationService notificationService; // Injected dependency
 
     public ClientServiceImpl(ClientRepository clientRepository,
                              ClientPhoneRepository clientPhoneRepository,
@@ -75,12 +75,14 @@ public class ClientServiceImpl implements ClientService {
         }
 
         ClientModel saved = clientRepository.save(client);
+        String primaryPhone = saved.getPhones().isEmpty() ? "00000000" : saved.getPhones().get(0).getPhoneNumber();
 
-        // LOG ACTION (CLIENT CATEGORY)
-        notificationService.createNotification(
+        // LOG ACTION WITH CLIENT PHONE & PRIORITY DETAILED PROPERTIES [1.2.1, 1.2.6]
+        notificationService.createDetailedNotification(
+                "Nouveau client enregistré",
                 "New client '" + saved.getName() + "' (Code: " + saved.getClientCode() + ") has been successfully registered.",
-                "SUCCESS",
-                "CLIENT"
+                "SUCCESS", "CLIENT", "SAFE", "GREEN", "LOW",
+                "CLIENT_REGISTRATION_" + saved.getId(), null, primaryPhone
         );
 
         return saved;
@@ -130,11 +132,12 @@ public class ClientServiceImpl implements ClientService {
                 .orElseThrow(() -> new IllegalArgumentException("Client not found"));
         clientRepository.delete(client);
 
-        // LOG ACTION (CLIENT CATEGORY)
-        notificationService.createNotification(
+        // LOG ACTION WITH PRIORITY DETAILED PROPERTIES [1.2.1, 1.2.6]
+        notificationService.createDetailedNotification(
+                "Fiche client supprimée",
                 "Client file for '" + client.getName() + "' (Code: " + client.getClientCode() + ") was permanently deleted.",
-                "DANGER",
-                "CLIENT"
+                "DANGER", "CLIENT", "SAFE", "GREEN", "LOW",
+                "CLIENT_DELETION_" + client.getId() + "_" + System.currentTimeMillis(), null, null
         );
     }
 

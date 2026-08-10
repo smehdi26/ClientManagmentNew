@@ -4,14 +4,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.clientmanagmentctinetwork.Dto.ReservationDto;
 import tn.esprit.clientmanagmentctinetwork.Dto.TimeSlot;
-import tn.esprit.clientmanagmentctinetwork.Model.AdminModel;
 import tn.esprit.clientmanagmentctinetwork.Model.ClientModel;
 import tn.esprit.clientmanagmentctinetwork.Model.ReservationModel;
-import tn.esprit.clientmanagmentctinetwork.Model.NotificationModel;
-import tn.esprit.clientmanagmentctinetwork.Repository.AdminRepository;
+import tn.esprit.clientmanagmentctinetwork.Model.AdminModel;
 import tn.esprit.clientmanagmentctinetwork.Repository.ClientRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.ReservationRepository;
-import tn.esprit.clientmanagmentctinetwork.Repository.NotificationRepository; // Added import
+import tn.esprit.clientmanagmentctinetwork.Repository.NotificationRepository;
+import tn.esprit.clientmanagmentctinetwork.Repository.AdminRepository;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -29,19 +28,86 @@ public class ReservationServiceImpl implements ReservationService {
     private final ClientRepository clientRepository;
     private final NotificationService notificationService;
     private final NotificationRepository notificationRepository;
-    private final AdminRepository adminRepository; // Added dependency [1.2.6]
+    private final AdminRepository adminRepository;
 
-    // Constructor injecting all dependencies including AdminRepository
     public ReservationServiceImpl(ReservationRepository reservationRepository,
                                   ClientRepository clientRepository,
                                   NotificationService notificationService,
                                   NotificationRepository notificationRepository,
-                                  AdminRepository adminRepository) { // Added parameter [1.2.6]
+                                  AdminRepository adminRepository) {
         this.reservationRepository = reservationRepository;
         this.clientRepository = clientRepository;
         this.notificationService = notificationService;
         this.notificationRepository = notificationRepository;
-        this.adminRepository = adminRepository; // Added mapping
+        this.adminRepository = adminRepository;
+    }
+
+    @Override
+    public List<ReservationModel> getAllReservations() {
+        return reservationRepository.findAllByOrderByReservationTimeDesc();
+    }
+
+    // Restores the timezone-safe search and filter implementation [1.2.1, 1.2.6]
+    @Override
+    public List<ReservationModel> searchAndFilterReservations(String keyword, String status) {
+        String cleanKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
+        String cleanStatus = (status != null && !status.trim().isEmpty()) ? status.trim() : null;
+
+        Integer searchHour = null;
+        Integer searchMinute = null;
+        LocalDateTime searchDateStart = null;
+        LocalDateTime searchDateEnd = null;
+
+        if (cleanKeyword != null) {
+            // 1. Try parsing as exact hour and minute (e.g., "09:30")
+            if (cleanKeyword.matches("^\\d{1,2}:\\d{2}$")) {
+                String[] parts = cleanKeyword.split(":");
+                searchHour = Integer.parseInt(parts[0]);
+                searchMinute = Integer.parseInt(parts[1]);
+            }
+            // 2. Try parsing as a standalone hour (e.g., "09" or "9")
+            else if (cleanKeyword.matches("^\\d{1,2}$")) {
+                int value = Integer.parseInt(cleanKeyword);
+                if (value >= 0 && value <= 23) {
+                    searchHour = value;
+                }
+            }
+            // 3. Try parsing as a LocalDate object and calculate safe boundaries in Java [1.1.3]
+            try {
+                LocalDate parsedDate = LocalDate.parse(cleanKeyword);
+                searchDateStart = LocalDateTime.of(parsedDate, LocalTime.MIN); // Start of day
+                searchDateEnd = LocalDateTime.of(parsedDate, LocalTime.MAX);   // End of day
+            } catch (Exception e) {
+                // Ignore if not a valid date format
+            }
+
+            // 4. Dynamically adjust search hour to match the database's timezone (UTC) [1.2.1]
+            if (searchHour != null) {
+                java.time.ZoneOffset offset = java.time.ZoneId.systemDefault().getRules().getOffset(java.time.Instant.now());
+                int offsetHours = offset.getTotalSeconds() / 3600; // e.g. +1 for WAT / Tunis
+
+                searchHour = searchHour - offsetHours;
+
+                if (searchHour < 0) {
+                    searchHour += 24;
+                } else if (searchHour > 23) {
+                    searchHour -= 24;
+                }
+            }
+        }
+
+        if (cleanKeyword == null && cleanStatus == null) {
+            return getAllReservations();
+        }
+
+        return reservationRepository.searchAndFilterReservations(
+                cleanKeyword,
+                cleanStatus,
+                searchHour,
+                searchMinute,
+                searchDateStart,
+                searchDateEnd
+        );
     }
 
     @Override
@@ -63,7 +129,6 @@ public class ReservationServiceImpl implements ReservationService {
         reservation.setDescription(dto.getDescription());
         reservation.setStatus("UNTREATED");
 
-        // Set the assigned IT Technician [1.2.6]
         if (dto.getTechnicianId() != null) {
             AdminModel technician = adminRepository.findById(dto.getTechnicianId())
                     .orElseThrow(() -> new IllegalArgumentException("IT Technician not found"));
@@ -71,23 +136,24 @@ public class ReservationServiceImpl implements ReservationService {
         }
 
         ReservationModel saved = reservationRepository.save(reservation);
+        String primaryPhone = client.getPrimaryPhoneNumber();
 
-        notificationService.createNotification(
-                "New meeting '" + saved.getName() + "' scheduled for client " + client.getName() + " on " + dto.getDate() + " at " + dto.getTime() + ".",
-                "SUCCESS",
-                "RESERVATION"
+        // LOG ACTION WITH CLIENT PHONE & PRIORITY DETAILED PROPERTIES [1.2.1, 1.2.6]
+        notificationService.createDetailedNotification(
+                "Nouvelle réservation",
+                "New reservation '" + saved.getName() + "' scheduled for client " + client.getName() + " on " + dto.getDate() + " at " + dto.getTime() + ".",
+                "SUCCESS", "RESERVATION", "SAFE", "GREEN", "LOW",
+                "RESERVATION_CREATION_" + saved.getId(), null, primaryPhone
         );
 
         return saved;
     }
 
-    // Overloaded method (1 parameter)
     @Override
     public void cancelReservation(Long id) {
         this.cancelReservation(id, null);
     }
 
-    // Overloaded method (2 parameters)
     @Override
     public void cancelReservation(Long id, String reason) {
         ReservationModel reservation = reservationRepository.findById(id)
@@ -96,10 +162,14 @@ public class ReservationServiceImpl implements ReservationService {
         reservation.setCancellationReason(reason);
         reservationRepository.save(reservation);
 
-        // Log action to the Notification Center
-        notificationService.createNotification(
+        String primaryPhone = reservation.getClient() != null ? reservation.getClient().getPrimaryPhoneNumber() : null;
+
+        // LOG ACTION WITH CLIENT PHONE & PRIORITY DETAILED PROPERTIES [1.2.1, 1.2.6]
+        notificationService.createDetailedNotification(
+                "Réservation annulée",
                 "Reservation for client " + reservation.getClient().getName() + " on " + reservation.getReservationTime().toLocalDate() + " has been CANCELLED. Reason: " + (reason != null && !reason.trim().isEmpty() ? reason : "Not specified"),
-                "DANGER", "RESERVATION"
+                "DANGER", "RESERVATION", "SAFE", "GREEN", "LOW",
+                "RESERVATION_CANCEL_" + reservation.getId(), null, primaryPhone
         );
     }
 
@@ -141,11 +211,6 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
-    public List<ReservationModel> getAllReservations() {
-        return reservationRepository.findAllByOrderByReservationTimeDesc();
-    }
-
-    @Override
     public void updateReservationStatus(Long id, String status) {
         ReservationModel r = reservationRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
@@ -153,10 +218,14 @@ public class ReservationServiceImpl implements ReservationService {
         r.setCancellationReason(null);
         reservationRepository.save(r);
 
-        // Log action to the Notification Center
-        notificationService.createNotification(
+        String primaryPhone = r.getClient() != null ? r.getClient().getPrimaryPhoneNumber() : null;
+
+        // LOG ACTION WITH CLIENT PHONE & PRIORITY DETAILED PROPERTIES [1.2.1, 1.2.6]
+        notificationService.createDetailedNotification(
+                "Statut de réservation modifié",
                 "Reservation status for client " + r.getClient().getName() + " updated manually to " + status + ".",
-                "INFO", "RESERVATION"
+                "INFO", "RESERVATION", "SAFE", "GREEN", "LOW",
+                "RESERVATION_STATUS_" + r.getId() + "_" + System.currentTimeMillis(), null, primaryPhone
         );
     }
 
@@ -174,85 +243,22 @@ public class ReservationServiceImpl implements ReservationService {
         LocalDateTime oneHourHence = now.plusHours(1);
         List<ReservationModel> upcoming = reservationRepository.findUpcomingReservationsWithinHour(now, oneHourHence);
 
-        // Save reminders to database history if they do not already exist
         for (ReservationModel r : upcoming) {
             boolean alreadyLogged = notificationRepository.existsByReservationIdAndType(r.getId(), "WARNING");
             if (!alreadyLogged) {
                 String clientPhone = r.getClient().getPhones().isEmpty() ? "No Number" : r.getClient().getPhones().get(0).getPhoneNumber();
                 String message = "Reminder: Please contact " + r.getClient().getName() + " (" + clientPhone + ") for their upcoming appointment at " + r.getReservationTime().toLocalTime() + ".";
 
-                NotificationModel notification = new NotificationModel();
-                notification.setMessage(message);
-                notification.setType("WARNING");
-                notification.setReservationId(r.getId());
-                notification.setCreatedAt(LocalDateTime.now());
-                notification.setReadStatus(false);
-                notificationRepository.save(notification);
+                // LOG ACTION WITH CLIENT PHONE & PRIORITY DETAILED PROPERTIES [1.2.1, 1.2.6]
+                notificationService.createDetailedNotification(
+                        "Rappel de réunion",
+                        message,
+                        "WARNING", "RESERVATION", "REMINDER", "YELLOW", "MEDIUM",
+                        "RESERVATION_WARNING_" + r.getId(), null, clientPhone
+                );
             }
         }
         return upcoming;
-    }
-
-    @Override
-    public List<ReservationModel> searchAndFilterReservations(String keyword, String status) {
-        String cleanKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
-        String cleanStatus = (status != null && !status.trim().isEmpty()) ? status.trim() : null;
-
-        Integer searchHour = null;
-        Integer searchMinute = null;
-        LocalDateTime searchDateStart = null;
-        LocalDateTime searchDateEnd = null;
-
-        if (cleanKeyword != null) {
-            // 1. Try parsing as exact hour and minute (e.g., "09:30")
-            if (cleanKeyword.matches("^\\d{1,2}:\\d{2}$")) {
-                String[] parts = cleanKeyword.split(":");
-                searchHour = Integer.parseInt(parts[0]);
-                searchMinute = Integer.parseInt(parts[1]);
-            }
-            // 2. Try parsing as a standalone hour (e.g., "09" or "9")
-            else if (cleanKeyword.matches("^\\d{1,2}$")) {
-                int value = Integer.parseInt(cleanKeyword);
-                if (value >= 0 && value <= 23) {
-                    searchHour = value;
-                }
-            }
-            // 3. Try parsing as a LocalDate object and calculate safe boundaries in Java
-            try {
-                LocalDate parsedDate = LocalDate.parse(cleanKeyword);
-                searchDateStart = LocalDateTime.of(parsedDate, LocalTime.MIN); // Start of day
-                searchDateEnd = LocalDateTime.of(parsedDate, LocalTime.MAX);   // End of day
-            } catch (Exception e) {
-                // Ignore if not a valid date format
-            }
-
-            // 4. Dynamically adjust search hour to match the database's timezone (UTC)
-            if (searchHour != null) {
-                java.time.ZoneOffset offset = java.time.ZoneId.systemDefault().getRules().getOffset(java.time.Instant.now());
-                int offsetHours = offset.getTotalSeconds() / 3600; // e.g. +1 for WAT / Tunis
-
-                searchHour = searchHour - offsetHours;
-
-                if (searchHour < 0) {
-                    searchHour += 24;
-                } else if (searchHour > 23) {
-                    searchHour -= 24;
-                }
-            }
-        }
-
-        if (cleanKeyword == null && cleanStatus == null) {
-            return getAllReservations();
-        }
-
-        return reservationRepository.searchAndFilterReservations(
-                cleanKeyword,
-                cleanStatus,
-                searchHour,
-                searchMinute,
-                searchDateStart,
-                searchDateEnd
-        );
     }
 
     @Override
@@ -261,10 +267,14 @@ public class ReservationServiceImpl implements ReservationService {
                 .orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
         reservationRepository.delete(reservation);
 
-        notificationService.createNotification(
+        String primaryPhone = reservation.getClient() != null ? reservation.getClient().getPrimaryPhoneNumber() : null;
+
+        // LOG ACTION WITH CLIENT PHONE & PRIORITY DETAILED PROPERTIES [1.2.1, 1.2.6]
+        notificationService.createDetailedNotification(
+                "Réservation supprimée",
                 "Reservation/Meeting '" + reservation.getName() + "' has been permanently deleted.",
-                "DANGER",
-                "RESERVATION"
+                "DANGER", "RESERVATION", "SAFE", "GREEN", "LOW",
+                "RESERVATION_DELETE_" + reservation.getId() + "_" + System.currentTimeMillis(), null, primaryPhone
         );
     }
 }

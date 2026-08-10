@@ -32,6 +32,9 @@ public class NotificationModel {
     @Column(name = "trigger_key", unique = true) // Database-level duplicate prevention [1.1.2]
     private String triggerKey;
 
+    @Column(name = "client_phone")
+    private String clientPhone; // Redirect reference to client profile
+
     @Column(nullable = false)
     private String category = "CLIENT"; // CLIENT, CONTRACT, RESERVATION
 
@@ -83,4 +86,7 @@ public class NotificationModel {
 
     public String getPriority() { return priority; }
     public void setPriority(String priority) { this.priority = priority; }
+
+    public String getClientPhone() { return clientPhone; }
+    public void setClientPhone(String clientPhone) { this.clientPhone = clientPhone; }
 }
