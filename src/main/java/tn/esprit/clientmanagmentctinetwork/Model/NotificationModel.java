@@ -2,6 +2,8 @@ package tn.esprit.clientmanagmentctinetwork.Model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonProperty; // Add this import
+
 
 @Entity
 @Table(name = "notifications")
@@ -18,6 +20,7 @@ public class NotificationModel {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @Column(nullable = false)
+    @JsonProperty("readStatus") // Forces the JSON to use this exact name
     private boolean readStatus = false;
 
     @Column(nullable = false)

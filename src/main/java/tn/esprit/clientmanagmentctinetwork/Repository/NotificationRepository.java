@@ -19,4 +19,7 @@ public interface NotificationRepository extends JpaRepository<NotificationModel,
 
     // ADD THIS: Checks if a trigger key is already in the database [1.1.2]
     boolean existsByTriggerKey(String triggerKey);
+
+    // Finds notifications that are read AND older than a specific date
+    void deleteByReadStatusTrueAndCreatedAtBefore(java.time.LocalDateTime threshold);
 }

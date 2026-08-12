@@ -1,5 +1,6 @@
 package tn.esprit.clientmanagmentctinetwork.Service;
 
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.clientmanagmentctinetwork.Model.NotificationModel;
@@ -94,5 +95,30 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public void deleteNotification(Long id) {
         notificationRepository.deleteById(id);
+    }
+
+    @Override
+    public void markAsRead(Long id) {
+        notificationRepository.findById(id).ifPresent(notification -> {
+            notification.setReadStatus(true);
+            notificationRepository.save(notification);
+            System.out.println("Notification " + id + " set to READ in database.");
+        });
+    }
+
+    // Runs every day at midnight
+    @Scheduled(cron = "0 0 0 * * *")
+    public void autoDeleteOldNotifications() {
+        // Calculate the date 45 days ago
+        java.time.LocalDateTime threshold = java.time.LocalDateTime.now().minusDays(45);
+
+        // Custom query in repository or just logic here
+        List<NotificationModel> oldNotifications = notificationRepository.findAll()
+                .stream()
+                .filter(n -> n.isReadStatus() && n.getCreatedAt().isBefore(threshold))
+                .toList();
+
+        notificationRepository.deleteAll(oldNotifications);
+        System.out.println("Cleanup: Deleted " + oldNotifications.size() + " old read notifications.");
     }
 }
