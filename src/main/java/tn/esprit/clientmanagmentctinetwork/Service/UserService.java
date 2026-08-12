@@ -2,14 +2,14 @@ package tn.esprit.clientmanagmentctinetwork.Service;
 
 import tn.esprit.clientmanagmentctinetwork.Dto.AdminProfileDto;
 import tn.esprit.clientmanagmentctinetwork.Dto.AdminRegistrationDto;
-import tn.esprit.clientmanagmentctinetwork.Model.AdminModel;
+import tn.esprit.clientmanagmentctinetwork.Model.UserModel;
 
-public interface AdminService {
+public interface UserService {
     // Standard register action
-    AdminModel save(AdminRegistrationDto registrationDto);
+    UserModel save(AdminRegistrationDto registrationDto);
 
     // Email lookup query
-    AdminModel findByEmail(String email);
+    UserModel findByEmail(String email);
 
     // Profile updates and password reset mapping [1.2.6]
-    AdminModel updateProfile(String existingEmail, AdminProfileDto dto);}
+    UserModel updateProfile(String existingEmail, AdminProfileDto dto);}

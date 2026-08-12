@@ -8,42 +8,52 @@ import org.springframework.web.bind.annotation.*;
 import tn.esprit.clientmanagmentctinetwork.Dto.AdminProfileDto;
 import tn.esprit.clientmanagmentctinetwork.Dto.AdminRegistrationDto;
 import tn.esprit.clientmanagmentctinetwork.Dto.LoginDto;
-import tn.esprit.clientmanagmentctinetwork.Model.AdminModel;
-import tn.esprit.clientmanagmentctinetwork.Service.AdminService;
+import tn.esprit.clientmanagmentctinetwork.Model.UserModel;
+import tn.esprit.clientmanagmentctinetwork.Repository.UserRepository;
+import tn.esprit.clientmanagmentctinetwork.Service.UserService;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthRestController {
 
-    private final AdminService adminService;
+    // 1. Declare the variables
+    private final UserService userService;
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public AuthRestController(AdminService adminService, PasswordEncoder passwordEncoder) {
-        this.adminService = adminService;
+    // 2. Update the Constructor to inject them
+    public AuthRestController(UserService userService,
+                              UserRepository userRepository,
+                              PasswordEncoder passwordEncoder) {
+        this.userService = userService;
+        this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
     // JSON Registration Endpoint
     @PostMapping("/register")
     public ResponseEntity<?> registerAdmin(@Valid @RequestBody AdminRegistrationDto registrationDto) {
-        AdminModel existing = adminService.findByEmail(registrationDto.getEmail());
-        if (existing != null) {
+        // 3. Now 'userRepository' will be recognized!
+        Optional<UserModel> existing = userRepository.findByEmail(registrationDto.getEmail());
+
+        if (existing.isPresent()) {
             Map<String, String> response = new HashMap<>();
             response.put("error", "There is already an account registered with that email");
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(response); // HTTP 409 Conflict
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
         }
 
-        adminService.save(registrationDto);
-        return ResponseEntity.status(HttpStatus.CREATED).build(); // HTTP 201 Created
+        userService.save(registrationDto);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     // JSON Login Endpoint
     @PostMapping("/login")
     public ResponseEntity<?> loginAdmin(@RequestBody LoginDto loginDto) {
-        AdminModel admin = adminService.findByEmail(loginDto.getUsername());
+        UserModel admin = userService.findByEmail(loginDto.getUsername());
 
         // Match raw password with DB encrypted password
         if (admin == null || !passwordEncoder.matches(loginDto.getPassword(), admin.getPassword())) {
@@ -65,7 +75,7 @@ public class AuthRestController {
 
     @GetMapping("/profile")
     public ResponseEntity<?> getProfile(@RequestParam("email") String email) {
-        AdminModel admin = adminService.findByEmail(email);
+        UserModel admin = userService.findByEmail(email);
         if (admin == null) {
             return ResponseEntity.notFound().build();
         }
@@ -77,7 +87,7 @@ public class AuthRestController {
             @RequestParam("existingEmail") String existingEmail,
             @Valid @RequestBody AdminProfileDto dto) { // Updated parameter
         try {
-            AdminModel updated = adminService.updateProfile(existingEmail, dto);
+            UserModel updated = userService.updateProfile(existingEmail, dto);
 
             // Return updated user details payload
             Map<String, Object> userDetails = new HashMap<>();

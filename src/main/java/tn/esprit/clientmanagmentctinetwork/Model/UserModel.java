@@ -3,32 +3,27 @@ package tn.esprit.clientmanagmentctinetwork.Model;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "admins", uniqueConstraints = @UniqueConstraint(columnNames = "email"))
-public class AdminModel {
+@Table(name = "users") // This ensures Hibernate only uses the 'users' table
+public class UserModel {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "first_name", nullable = false)
     private String firstName;
-
-    @Column(name = "last_name", nullable = false)
     private String lastName;
 
-    @Column(nullable = false, unique = true)
+    @Column(unique = true, nullable = false)
     private String email;
 
-    @Column(nullable = false)
     private String password;
 
-    private String role = "ROLE_ADMIN"; // Standard role for the admin
+    // This role string will store: ROLE_ADMIN, ROLE_HR, or ROLE_TECHNICIAN
+    private String role;
 
-    // Constructors
-    public AdminModel() {}
+    public UserModel() {}
 
-    // Non-default constructor updated to receive role parameter [1.2.6]
-    public AdminModel(String firstName, String lastName, String email, String password, String role) {
+    public UserModel(String firstName, String lastName, String email, String password, String role) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.email = email;

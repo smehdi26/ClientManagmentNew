@@ -6,11 +6,11 @@ import tn.esprit.clientmanagmentctinetwork.Dto.ReservationDto;
 import tn.esprit.clientmanagmentctinetwork.Dto.TimeSlot;
 import tn.esprit.clientmanagmentctinetwork.Model.ClientModel;
 import tn.esprit.clientmanagmentctinetwork.Model.ReservationModel;
-import tn.esprit.clientmanagmentctinetwork.Model.AdminModel;
+import tn.esprit.clientmanagmentctinetwork.Model.UserModel;
 import tn.esprit.clientmanagmentctinetwork.Repository.ClientRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.ReservationRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.NotificationRepository;
-import tn.esprit.clientmanagmentctinetwork.Repository.AdminRepository;
+import tn.esprit.clientmanagmentctinetwork.Repository.UserRepository;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -28,18 +28,18 @@ public class ReservationServiceImpl implements ReservationService {
     private final ClientRepository clientRepository;
     private final NotificationService notificationService;
     private final NotificationRepository notificationRepository;
-    private final AdminRepository adminRepository;
+    private final UserRepository userRepository;
 
     public ReservationServiceImpl(ReservationRepository reservationRepository,
                                   ClientRepository clientRepository,
                                   NotificationService notificationService,
                                   NotificationRepository notificationRepository,
-                                  AdminRepository adminRepository) {
+                                  UserRepository userRepository) {
         this.reservationRepository = reservationRepository;
         this.clientRepository = clientRepository;
         this.notificationService = notificationService;
         this.notificationRepository = notificationRepository;
-        this.adminRepository = adminRepository;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -130,7 +130,7 @@ public class ReservationServiceImpl implements ReservationService {
         reservation.setStatus("UNTREATED");
 
         if (dto.getTechnicianId() != null) {
-            AdminModel technician = adminRepository.findById(dto.getTechnicianId())
+            UserModel technician = userRepository.findById(dto.getTechnicianId())
                     .orElseThrow(() -> new IllegalArgumentException("IT Technician not found"));
             reservation.setTechnician(technician);
         }

@@ -10,38 +10,38 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.clientmanagmentctinetwork.Dto.AdminProfileDto;
 import tn.esprit.clientmanagmentctinetwork.Dto.AdminRegistrationDto;
-import tn.esprit.clientmanagmentctinetwork.Model.AdminModel;
-import tn.esprit.clientmanagmentctinetwork.Repository.AdminRepository;
+import tn.esprit.clientmanagmentctinetwork.Model.UserModel;
+import tn.esprit.clientmanagmentctinetwork.Repository.UserRepository;
 
 import java.util.Collections;
 
 @Service
 @Transactional
-public class AdminServiceImpl implements AdminService, UserDetailsService {
+public class UserServiceImpl implements UserService, UserDetailsService {
 
-    private final AdminRepository adminRepository;
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final NotificationService notificationService; // Added dependency
 
     // Constructor injecting all required dependencies
-    public AdminServiceImpl(AdminRepository adminRepository,
-                            PasswordEncoder passwordEncoder,
-                            NotificationService notificationService) { // Added constructor parameter
-        this.adminRepository = adminRepository;
+    public UserServiceImpl(UserRepository userRepository,
+                           PasswordEncoder passwordEncoder,
+                           NotificationService notificationService) { // Added constructor parameter
+        this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.notificationService = notificationService; // Added mapping
     }
 
     @Override
-    public AdminModel save(AdminRegistrationDto registrationDto) {
-        AdminModel admin = new AdminModel(
+    public UserModel save(AdminRegistrationDto registrationDto) {
+        UserModel admin = new UserModel(
                 registrationDto.getFirstName(),
                 registrationDto.getLastName(),
                 registrationDto.getEmail(),
                 passwordEncoder.encode(registrationDto.getPassword()),
                 registrationDto.getRole() // Map the role parameter
         );
-        AdminModel saved = adminRepository.save(admin);
+        UserModel saved = userRepository.save(admin);
 
         // Extract clear role name for logging (e.g. "ROLE_HR" -> "HR")
         String roleName = saved.getRole().replace("ROLE_", "");
@@ -57,20 +57,20 @@ public class AdminServiceImpl implements AdminService, UserDetailsService {
     }
 
     @Override
-    public AdminModel findByEmail(String email) {
-        return adminRepository.findByEmail(email).orElse(null);
+    public UserModel findByEmail(String email) {
+        return userRepository.findByEmail(email).orElse(null);
     }
 
     @Override
-    public AdminModel updateProfile(String existingEmail, AdminProfileDto dto) {
-        AdminModel admin = adminRepository.findByEmail(existingEmail)
+    public UserModel updateProfile(String existingEmail, AdminProfileDto dto) {
+        UserModel admin = userRepository.findByEmail(existingEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Admin profile not found"));
 
         admin.setFirstName(dto.getFirstName());
         admin.setLastName(dto.getLastName());
 
         if (!admin.getEmail().equalsIgnoreCase(dto.getEmail())) {
-            adminRepository.findByEmail(dto.getEmail()).ifPresent(existing -> {
+            userRepository.findByEmail(dto.getEmail()).ifPresent(existing -> {
                 throw new IllegalStateException("Email address '" + dto.getEmail() + "' is already in use.");
             });
             admin.setEmail(dto.getEmail());
@@ -80,7 +80,7 @@ public class AdminServiceImpl implements AdminService, UserDetailsService {
             admin.setPassword(passwordEncoder.encode(dto.getPassword().trim()));
         }
 
-        AdminModel saved = adminRepository.save(admin);
+        UserModel saved = userRepository.save(admin);
 
         // LOG ACTION: Changed category from CLIENT to USER [1.2.6]
         notificationService.createNotification(
@@ -94,13 +94,13 @@ public class AdminServiceImpl implements AdminService, UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        AdminModel admin = adminRepository.findByEmail(username)
-                .orElseThrow(() -> new UsernameNotFoundException("Invalid email or password."));
+        UserModel user = userRepository.findByEmail(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found."));
 
-        return new User(
-                admin.getEmail(),
-                admin.getPassword(),
-                Collections.singletonList(new SimpleGrantedAuthority(admin.getRole()))
+        return new org.springframework.security.core.userdetails.User(
+                user.getEmail(),
+                user.getPassword(),
+                Collections.singletonList(new SimpleGrantedAuthority(user.getRole()))
         );
     }
 }

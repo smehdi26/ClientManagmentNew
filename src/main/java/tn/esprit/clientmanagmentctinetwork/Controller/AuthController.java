@@ -9,9 +9,9 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import tn.esprit.clientmanagmentctinetwork.Dto.AdminRegistrationDto;
-import tn.esprit.clientmanagmentctinetwork.Model.AdminModel;
+import tn.esprit.clientmanagmentctinetwork.Model.UserModel;
 import tn.esprit.clientmanagmentctinetwork.Model.ClientModel;
-import tn.esprit.clientmanagmentctinetwork.Service.AdminService;
+import tn.esprit.clientmanagmentctinetwork.Service.UserService;
 import tn.esprit.clientmanagmentctinetwork.Service.ClientService;
 import tn.esprit.clientmanagmentctinetwork.Service.ContractService; // Added import
 import tn.esprit.clientmanagmentctinetwork.Service.NotificationService;
@@ -22,19 +22,19 @@ import java.util.List;
 @Controller
 public class AuthController {
 
-    private final AdminService adminService;
+    private final UserService userService;
     private final ClientService clientService;
     private final ReservationService reservationService;
     private final NotificationService notificationService;
     private final ContractService contractService; // Added dependency
 
     // Constructor injecting all required services
-    public AuthController(AdminService adminService,
+    public AuthController(UserService userService,
                           ClientService clientService,
                           ReservationService reservationService,
                           NotificationService notificationService,
                           ContractService contractService) { // Added parameter
-        this.adminService = adminService;
+        this.userService = userService;
         this.clientService = clientService;
         this.reservationService = reservationService;
         this.notificationService = notificationService;
@@ -57,7 +57,7 @@ public class AuthController {
             @Valid @ModelAttribute("admin") AdminRegistrationDto registrationDto,
             BindingResult result) {
 
-        AdminModel existing = adminService.findByEmail(registrationDto.getEmail());
+        UserModel existing = userService.findByEmail(registrationDto.getEmail());
         if (existing != null) {
             result.rejectValue("email", null, "There is already an account registered with that email");
         }
@@ -72,7 +72,7 @@ public class AuthController {
             return "register";
         }
 
-        adminService.save(registrationDto);
+        userService.save(registrationDto);
         return "redirect:/register?success";
     }
 
