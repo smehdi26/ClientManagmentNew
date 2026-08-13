@@ -12,4 +12,6 @@ public interface UserService {
     UserModel findByEmail(String email);
 
     // Profile updates and password reset mapping [1.2.6]
-    UserModel updateProfile(String existingEmail, AdminProfileDto dto);}
+    UserModel updateProfile(String existingEmail, AdminProfileDto dto);
+    void processOAuthPostLogin(String email, String firstName, String lastName);
+}

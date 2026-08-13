@@ -14,6 +14,7 @@ import tn.esprit.clientmanagmentctinetwork.Model.UserModel;
 import tn.esprit.clientmanagmentctinetwork.Repository.UserRepository;
 
 import java.util.Collections;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -102,5 +103,24 @@ public class UserServiceImpl implements UserService, UserDetailsService {
                 user.getPassword(),
                 Collections.singletonList(new SimpleGrantedAuthority(user.getRole()))
         );
+    }
+
+    @Override
+    public void processOAuthPostLogin(String email, String firstName, String lastName) {
+        Optional<UserModel> existUser = userRepository.findByEmail(email);
+
+        if (existUser.isEmpty()) {
+            UserModel newUser = new UserModel();
+            newUser.setEmail(email);
+            newUser.setFirstName(firstName);
+            newUser.setLastName(lastName);
+            newUser.setRole("ROLE_TECHNICIAN"); // Assign a default role
+            newUser.setPassword(""); // OAuth users don't need a local password
+            userRepository.save(newUser);
+
+            notificationService.createNotification(
+                    "New account created via Google: " + email, "SUCCESS", "USER"
+            );
+        }
     }
 }
