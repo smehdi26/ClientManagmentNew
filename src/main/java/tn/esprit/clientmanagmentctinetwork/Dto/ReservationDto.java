@@ -14,16 +14,19 @@ public class ReservationDto {
     private String name;
 
     @NotNull(message = "Please select a booking date")
-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) // Instructs Spring to parse 'yyyy-MM-dd'
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate date;
 
     @NotNull(message = "Please select a time slot")
-    @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) // Instructs Spring to parse 'HH:mm'
+    @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
     private LocalTime time;
 
     private String description;
 
     private Long technicianId;
+
+    // --- ADD THIS FIELD ---
+    private String priority;
 
 
     // Getters and Setters
@@ -44,4 +47,8 @@ public class ReservationDto {
 
     public Long getTechnicianId() { return technicianId; }
     public void setTechnicianId(Long technicianId) { this.technicianId = technicianId; }
+
+    // --- ADD THESE METHODS ---
+    public String getPriority() { return priority; }
+    public void setPriority(String priority) { this.priority = priority; }
 }

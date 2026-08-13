@@ -12,7 +12,7 @@ public class ReservationModel {
     private Long id;
 
     @Column(nullable = false)
-    private String name; // Reservation Title / Name
+    private String name;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id", nullable = false)
@@ -25,14 +25,18 @@ public class ReservationModel {
     private String description;
 
     @Column(nullable = false)
-    private String status = "UNTREATED"; // UNTREATED, IN_PROGRESS, DONE, CANCELLED
+    private String status = "UNTREATED";
 
     @Column(name = "cancellation_reason", columnDefinition = "TEXT")
     private String cancellationReason;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "technician_id") // This links to the ID in the 'users' table
+    @JoinColumn(name = "technician_id")
     private UserModel technician;
+
+    // --- ADD THIS COLUMN ---
+    @Column(nullable = false)
+    private String priority = "MEDIUM";
 
     // Getters and Setters
     public Long getId() { return id; }
@@ -58,4 +62,8 @@ public class ReservationModel {
 
     public UserModel getTechnician() { return technician; }
     public void setTechnician(UserModel technician) { this.technician = technician; }
+
+    // --- ADD THESE METHODS ---
+    public String getPriority() { return priority; }
+    public void setPriority(String priority) { this.priority = priority; }
 }
