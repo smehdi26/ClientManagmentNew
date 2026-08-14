@@ -35,18 +35,17 @@ public interface ReservationRepository extends JpaRepository<ReservationModel, L
     // Global search and status state filtering
     // 100% safe, timezone-neutral search and status state filtering
     @Query("SELECT DISTINCT r FROM ReservationModel r LEFT JOIN r.client c WHERE " +
-            "(:status IS NULL OR :status = '' OR r.status = :status) AND (" +
+            "(:status IS NULL OR :status = '' OR r.status = :status) AND " +
+            "(:priority IS NULL OR :priority = '' OR r.priority = :priority) AND (" + // NEW LINE
             ":keyword IS NULL OR :keyword = '' OR " +
-            "LOWER(r.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " + // Added search check
+            "LOWER(r.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(c.name) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "LOWER(r.description) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "LOWER(r.status) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-            "(:searchHour IS NOT NULL AND HOUR(r.reservationTime) = :searchHour AND (:searchMinute IS NULL OR MINUTE(r.reservationTime) = :searchMinute)) OR " +
-            "(:searchDateStart IS NOT NULL AND r.reservationTime >= :searchDateStart AND r.reservationTime <= :searchDateEnd)" +
+            "LOWER(r.description) LIKE LOWER(CONCAT('%', :keyword, '%'))" +
             ") ORDER BY r.reservationTime DESC")
     List<ReservationModel> searchAndFilterReservations(
             @Param("keyword") String keyword,
             @Param("status") String status,
+            @Param("priority") String priority, // NEW PARAM
             @Param("searchHour") Integer searchHour,
             @Param("searchMinute") Integer searchMinute,
             @Param("searchDateStart") java.time.LocalDateTime searchDateStart,

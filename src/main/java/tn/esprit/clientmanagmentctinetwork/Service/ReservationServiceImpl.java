@@ -48,9 +48,11 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
-    public List<ReservationModel> searchAndFilterReservations(String keyword, String status) {
+    public List<ReservationModel> searchAndFilterReservations(String keyword, String status, String priority) {
+        // 1. Clean and normalize input parameters
         String cleanKeyword = (keyword != null && !keyword.trim().isEmpty()) ? keyword.trim() : null;
         String cleanStatus = (status != null && !status.trim().isEmpty()) ? status.trim() : null;
+        String cleanPriority = (priority != null && !priority.trim().isEmpty()) ? priority.trim() : null;
 
         Integer searchHour = null;
         Integer searchMinute = null;
@@ -58,38 +60,57 @@ public class ReservationServiceImpl implements ReservationService {
         LocalDateTime searchDateEnd = null;
 
         if (cleanKeyword != null) {
+            // 2. Try parsing as exact hour and minute (e.g., "09:30")
             if (cleanKeyword.matches("^\\d{1,2}:\\d{2}$")) {
                 String[] parts = cleanKeyword.split(":");
                 searchHour = Integer.parseInt(parts[0]);
                 searchMinute = Integer.parseInt(parts[1]);
             }
+            // 3. Try parsing as a standalone hour (e.g., "09" or "9")
             else if (cleanKeyword.matches("^\\d{1,2}$")) {
                 int value = Integer.parseInt(cleanKeyword);
                 if (value >= 0 && value <= 23) {
                     searchHour = value;
                 }
             }
+            // 4. Try parsing as a LocalDate object and calculate boundaries
             try {
                 LocalDate parsedDate = LocalDate.parse(cleanKeyword);
-                searchDateStart = LocalDateTime.of(parsedDate, LocalTime.MIN);
-                searchDateEnd = LocalDateTime.of(parsedDate, LocalTime.MAX);
-            } catch (Exception ignored) {}
+                searchDateStart = LocalDateTime.of(parsedDate, LocalTime.MIN); // Start of day 00:00
+                searchDateEnd = LocalDateTime.of(parsedDate, LocalTime.MAX);   // End of day 23:59
+            } catch (Exception ignored) {
+                // Ignore if not a valid date format, it will be handled as a text search by SQL
+            }
 
+            // 5. Dynamically adjust search hour to match the database's timezone (UTC)
             if (searchHour != null) {
                 java.time.ZoneOffset offset = java.time.ZoneId.systemDefault().getRules().getOffset(java.time.Instant.now());
-                int offsetHours = offset.getTotalSeconds() / 3600;
+                int offsetHours = offset.getTotalSeconds() / 3600; // e.g. +1 for Tunis
+
                 searchHour = searchHour - offsetHours;
-                if (searchHour < 0) searchHour += 24;
-                else if (searchHour > 23) searchHour -= 24;
+
+                if (searchHour < 0) {
+                    searchHour += 24;
+                } else if (searchHour > 23) {
+                    searchHour -= 24;
+                }
             }
         }
 
-        if (cleanKeyword == null && cleanStatus == null) {
+        // 6. If no filters are applied at all, return the full chronological list
+        if (cleanKeyword == null && cleanStatus == null && cleanPriority == null) {
             return getAllReservations();
         }
 
+        // 7. Call the repository with all parameters
         return reservationRepository.searchAndFilterReservations(
-                cleanKeyword, cleanStatus, searchHour, searchMinute, searchDateStart, searchDateEnd
+                cleanKeyword,
+                cleanStatus,
+                cleanPriority, // This matches the new @Param("priority") in your Repository
+                searchHour,
+                searchMinute,
+                searchDateStart,
+                searchDateEnd
         );
     }
 
@@ -257,5 +278,26 @@ public class ReservationServiceImpl implements ReservationService {
         return reservationRepository.countActiveByTimeRange(
                 LocalDateTime.of(LocalDate.now(), LocalTime.MIN),
                 LocalDateTime.of(LocalDate.now(), LocalTime.MAX));
+    }
+
+    @Override
+    public ReservationModel updateReservation(Long id, ReservationDto dto) {
+        ReservationModel res = reservationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
+
+        res.setName(dto.getName());
+        res.setPriority(dto.getPriority());
+        res.setDescription(dto.getDescription());
+        res.setStatus(dto.getStatus());
+
+        if (dto.getTechnicianId() != null) {
+            UserModel tech = userRepository.findById(dto.getTechnicianId())
+                    .orElseThrow(() -> new IllegalArgumentException("Technician not found"));
+            res.setTechnician(tech);
+        } else {
+            res.setTechnician(null);
+        }
+
+        return reservationRepository.save(res);
     }
 }

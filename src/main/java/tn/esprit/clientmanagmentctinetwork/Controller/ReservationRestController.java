@@ -25,9 +25,10 @@ public class ReservationRestController {
     @GetMapping
     public ResponseEntity<List<ReservationModel>> getReservations(
             @RequestParam(value = "keyword", required = false) String keyword,
-            @RequestParam(value = "statusFilter", required = false) String statusFilter) {
+            @RequestParam(value = "statusFilter", required = false) String statusFilter,
+            @RequestParam(value = "priorityFilter", required = false) String priorityFilter) { // NEW
 
-        List<ReservationModel> list = reservationService.searchAndFilterReservations(keyword, statusFilter);
+        List<ReservationModel> list = reservationService.searchAndFilterReservations(keyword, statusFilter, priorityFilter);
         return ResponseEntity.ok(list);
     }
 
@@ -89,5 +90,10 @@ public class ReservationRestController {
     public ResponseEntity<Void> deleteReservation(@PathVariable Long id) {
         reservationService.deleteReservation(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ReservationModel> updateReservation(@PathVariable Long id, @RequestBody ReservationDto dto) {
+        return ResponseEntity.ok(reservationService.updateReservation(id, dto));
     }
 }

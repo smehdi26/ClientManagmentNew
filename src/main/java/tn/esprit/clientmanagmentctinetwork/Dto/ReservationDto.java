@@ -28,6 +28,9 @@ public class ReservationDto {
     // --- ADD THIS FIELD ---
     private String priority;
 
+    private String status;
+
+
 
     // Getters and Setters
     public Long getClientId() { return clientId; }
@@ -51,4 +54,13 @@ public class ReservationDto {
     // --- ADD THESE METHODS ---
     public String getPriority() { return priority; }
     public void setPriority(String priority) { this.priority = priority; }
+
+    // --- ADD THESE METHODS ---
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
 }
