@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.clientmanagmentctinetwork.Dto.ContractDto;
 import tn.esprit.clientmanagmentctinetwork.Dto.VisitScheduleDto;
+import tn.esprit.clientmanagmentctinetwork.Dto.VisitValidationDto;
 import tn.esprit.clientmanagmentctinetwork.Model.ClientModel;
 import tn.esprit.clientmanagmentctinetwork.Model.ContractModel;
 import tn.esprit.clientmanagmentctinetwork.Model.ContractHistoryModel;
@@ -13,11 +14,8 @@ import tn.esprit.clientmanagmentctinetwork.Repository.ContractRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.NotificationRepository;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @Transactional
@@ -419,6 +417,84 @@ public class ContractServiceImpl implements ContractService {
             notification.setCategory("CONTRACT"); // Tag dynamically as CONTRACT
 
             notificationRepository.save(notification);
+        }
+    }
+
+    @Override
+    public ContractModel validateVisit(Long id, VisitValidationDto dto, String currentUserName) {
+        ContractModel contract = getContractById(id);
+        int index = dto.getVisitIndex();
+
+        // 1. SEQUENCE CONTROL (The logic you requested)
+        if (index > 1) {
+            if (!isVisitValidated(contract, index - 1)) {
+                throw new IllegalStateException("Impossible de valider la visite #" + index +
+                        " car la visite #" + (index - 1) + " n'est pas encore faite.");
+            }
+        }
+
+        // 2. MAP DATA BASED ON INDEX
+        LocalDate date = LocalDate.parse(dto.getDate());
+        String obs = dto.getObservations();
+        String file = dto.getFilePath();
+        String fileName = dto.getFileName();
+
+        switch (index) {
+            case 1 -> { contract.setVisitDate1(date); contract.setVisitObs1(obs); contract.setVisitUser1(currentUserName); contract.setVisitFile1(file); contract.setVisitFileName1(fileName); }
+            case 2 -> { contract.setVisitDate2(date); contract.setVisitObs2(obs); contract.setVisitUser2(currentUserName); contract.setVisitFile2(file); contract.setVisitFileName2(fileName); }
+            case 3 -> { contract.setVisitDate3(date); contract.setVisitObs3(obs); contract.setVisitUser3(currentUserName); contract.setVisitFile3(file); contract.setVisitFileName3(fileName); }
+            case 4 -> { contract.setVisitDate4(date); contract.setVisitObs4(obs); contract.setVisitUser4(currentUserName); contract.setVisitFile4(file); contract.setVisitFileName4(fileName); }
+            case 5 -> { contract.setVisitDate5(date); contract.setVisitObs5(obs); contract.setVisitUser5(currentUserName); contract.setVisitFile5(file); contract.setVisitFileName5(fileName); }
+            case 6 -> { contract.setVisitDate6(date); contract.setVisitObs6(obs); contract.setVisitUser6(currentUserName); contract.setVisitFile6(file); contract.setVisitFileName6(fileName); }
+        }
+
+        return contractRepository.save(contract);
+    }
+
+    @Override
+    public ContractModel deleteVisitData(Long id, int index) {
+        ContractModel contract = getContractById(id);
+        switch (index) {
+            case 1 -> { contract.setVisitDate1(null); contract.setVisitObs1(null); contract.setVisitUser1(null); contract.setVisitFile1(null); contract.setVisitFileName1(null); }
+            case 2 -> { contract.setVisitDate2(null); contract.setVisitObs2(null); contract.setVisitUser2(null); contract.setVisitFile2(null); contract.setVisitFileName2(null); }
+            case 3 -> { contract.setVisitDate3(null); contract.setVisitObs3(null); contract.setVisitUser3(null); contract.setVisitFile3(null); contract.setVisitFileName3(null); }
+            case 4 -> { contract.setVisitDate4(null); contract.setVisitObs4(null); contract.setVisitUser4(null); contract.setVisitFile4(null); contract.setVisitFileName4(null); }
+            case 5 -> { contract.setVisitDate5(null); contract.setVisitObs5(null); contract.setVisitUser5(null); contract.setVisitFile5(null); contract.setVisitFileName5(null); }
+            case 6 -> { contract.setVisitDate6(null); contract.setVisitObs6(null); contract.setVisitUser6(null); contract.setVisitFile6(null); contract.setVisitFileName6(null); }
+        }
+        return contractRepository.save(contract);
+    }
+
+    // Helper for sequence check
+    private boolean isVisitValidated(ContractModel c, int idx) {
+        return switch (idx) {
+            case 1 -> c.getVisitDate1() != null;
+            case 2 -> c.getVisitDate2() != null;
+            case 3 -> c.getVisitDate3() != null;
+            case 4 -> c.getVisitDate4() != null;
+            case 5 -> c.getVisitDate5() != null;
+            case 6 -> c.getVisitDate6() != null;
+            default -> false;
+        };
+    }
+
+    private boolean isVisitDone(ContractModel c, int idx) {
+        if (idx == 1) return c.getVisitDate1() != null;
+        if (idx == 2) return c.getVisitDate2() != null;
+        if (idx == 3) return c.getVisitDate3() != null;
+        if (idx == 4) return c.getVisitDate4() != null;
+        if (idx == 5) return c.getVisitDate5() != null;
+        return c.getVisitDate6() != null;
+    }
+
+    private void applyVisitData(ContractModel c, int idx, LocalDate date, String obs, String file, String fileName, String user) {
+        switch (idx) {
+            case 1 -> { c.setVisitDate1(date); c.setVisitObs1(obs); c.setVisitFile1(file); c.setVisitFileName1(fileName); c.setVisitUser1(user); }
+            case 2 -> { c.setVisitDate2(date); c.setVisitObs2(obs); c.setVisitFile2(file); c.setVisitFileName2(fileName); c.setVisitUser2(user); }
+            case 3 -> { c.setVisitDate3(date); c.setVisitObs3(obs); c.setVisitFile3(file); c.setVisitFileName3(fileName); c.setVisitUser3(user); }
+            case 4 -> { c.setVisitDate4(date); c.setVisitObs4(obs); c.setVisitFile4(file); c.setVisitFileName4(fileName); c.setVisitUser4(user); }
+            case 5 -> { c.setVisitDate5(date); c.setVisitObs5(obs); c.setVisitFile5(file); c.setVisitFileName5(fileName); c.setVisitUser5(user); }
+            case 6 -> { c.setVisitDate6(date); c.setVisitObs6(obs); c.setVisitFile6(file); c.setVisitFileName6(fileName); c.setVisitUser6(user); }
         }
     }
 }

@@ -5,11 +5,16 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import tn.esprit.clientmanagmentctinetwork.Dto.ContractDto;
 import tn.esprit.clientmanagmentctinetwork.Dto.VisitScheduleDto;
+import tn.esprit.clientmanagmentctinetwork.Dto.VisitValidationDto;
 import tn.esprit.clientmanagmentctinetwork.Model.ContractModel;
+import tn.esprit.clientmanagmentctinetwork.Model.UserModel;
+import tn.esprit.clientmanagmentctinetwork.Repository.UserRepository;
 import tn.esprit.clientmanagmentctinetwork.Service.ContractService;
 
 import java.io.File;
@@ -21,15 +26,19 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/contracts")
+@CrossOrigin(origins = "http://localhost:4200", allowCredentials = "true")
 public class ContractRestController {
 
     private final ContractService contractService;
+    private final UserRepository userRepository; // Added to fix "cannot find symbol"
 
-    public ContractRestController(ContractService contractService) {
+    // Updated Constructor to inject both Service and Repository
+    public ContractRestController(ContractService contractService, UserRepository userRepository) {
         this.contractService = contractService;
+        this.userRepository = userRepository;
     }
 
-    // 1. GET: Fetch all contracts with optional search, redevance, and status filters [1.2.6]
+    // 1. GET: Fetch all contracts with optional search, redevance, and status filters
     @GetMapping
     public ResponseEntity<List<ContractModel>> getAllContracts(
             @RequestParam(value = "keyword", required = false) String keyword,
@@ -69,13 +78,13 @@ public class ContractRestController {
         return ResponseEntity.ok(contractService.updateStatus(id, status));
     }
 
-    // 7. POST: Renew contract (Adds exactly 1 year and resets schedule) [1.1.4]
+    // 7. POST: Renew contract
     @PostMapping("/{id}/renew")
     public ResponseEntity<ContractModel> renewContract(@PathVariable Long id) {
         return ResponseEntity.ok(contractService.renewContract(id));
     }
 
-    // 8. PUT: Update exact visit dates and file paths (N.D.V constraint-safe) [1.1.4, 1.2.1, 1.2.6]
+    // 8. PUT: Update schedule dates
     @PutMapping("/{id}/schedule-dates")
     public ResponseEntity<ContractModel> updateScheduleDates(
             @PathVariable Long id,
@@ -83,25 +92,21 @@ public class ContractRestController {
         return ResponseEntity.ok(contractService.updateContractScheduleDates(id, visits));
     }
 
-    // 9. POST: Safe AJAX File Uploader [1.2.6]
+    // 9. POST: AJAX File Uploader
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
         try {
             String uploadDir = "uploads/";
             File directory = new File(uploadDir);
             if (!directory.exists()) {
-                directory.mkdirs(); // Creates the uploads/ folder in your project root if missing [1.1.1]
+                directory.mkdirs();
             }
 
             String originalFilename = file.getOriginalFilename();
-            if (originalFilename == null) {
-                originalFilename = "uploaded_file";
-            }
-            String uniqueFilename = System.currentTimeMillis() + "_" + originalFilename;
+            String uniqueFilename = System.currentTimeMillis() + "_" + (originalFilename != null ? originalFilename : "file");
 
-            // Safe NIO direct byte writing [1.2.1]
             byte[] bytes = file.getBytes();
-            java.nio.file.Path path = java.nio.file.Paths.get(uploadDir + uniqueFilename);
+            Path path = Paths.get(uploadDir + uniqueFilename);
             java.nio.file.Files.write(path, bytes);
 
             Map<String, String> response = new HashMap<>();
@@ -109,12 +114,11 @@ public class ContractRestController {
             response.put("fileName", originalFilename);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            e.printStackTrace(); // Prints any system exception directly to IntelliJ console [1.1.1]
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to upload file");
         }
     }
 
-    // 10. GET: Safe File Downloader/Viewer stream [1.2.6]
+    // 10. GET: File Downloader
     @GetMapping("/files/{filename}")
     public ResponseEntity<Resource> downloadFile(@PathVariable String filename) {
         try {
@@ -145,5 +149,42 @@ public class ContractRestController {
     public ResponseEntity<Void> deleteContract(@PathVariable Long id) {
         contractService.deleteContract(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 13. PUT: Validate a single visit and save observer Full Name
+     */
+    @PutMapping("/{id}/validate-visit")
+    public ResponseEntity<ContractModel> validateVisit(
+            @PathVariable Long id,
+            @RequestBody VisitValidationDto dto,
+            Authentication authentication) {
+
+        String email;
+
+        // 1. Identify the user email (handles both Google and Manual login)
+        if (authentication.getPrincipal() instanceof OAuth2User oAuth2User) {
+            email = oAuth2User.getAttribute("email");
+        } else {
+            email = authentication.getName();
+        }
+
+        // 2. Fetch the user from the database to get the real Name (Fixes the symbol error)
+        UserModel user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Logged in user not found in database"));
+
+        // 3. Construct the Full Name
+        String fullName = user.getFirstName() + " " + user.getLastName();
+
+        // 4. Pass the Full Name to the service
+        return ResponseEntity.ok(contractService.validateVisit(id, dto, fullName));
+    }
+
+    /**
+     * 14. DELETE: Clear visit data for a specific slot
+     */
+    @DeleteMapping("/{id}/visit/{index}")
+    public ResponseEntity<ContractModel> deleteVisit(@PathVariable Long id, @PathVariable int index) {
+        return ResponseEntity.ok(contractService.deleteVisitData(id, index));
     }
 }

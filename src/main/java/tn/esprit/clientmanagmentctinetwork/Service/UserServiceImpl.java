@@ -112,10 +112,10 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         if (existUser.isEmpty()) {
             UserModel newUser = new UserModel();
             newUser.setEmail(email);
-            newUser.setFirstName(firstName);
-            newUser.setLastName(lastName);
-            newUser.setRole("ROLE_TECHNICIAN"); // Assign a default role
-            newUser.setPassword(""); // OAuth users don't need a local password
+            newUser.setFirstName(firstName != null ? firstName : "Google"); // Ensure not null
+            newUser.setLastName(lastName != null ? lastName : "User");
+            newUser.setRole("ROLE_TECHNICIAN");
+            newUser.setPassword("");
             userRepository.save(newUser);
 
             notificationService.createNotification(

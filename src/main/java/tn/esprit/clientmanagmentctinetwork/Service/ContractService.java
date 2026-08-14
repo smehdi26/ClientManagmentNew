@@ -1,6 +1,7 @@
 package tn.esprit.clientmanagmentctinetwork.Service;
 
 import tn.esprit.clientmanagmentctinetwork.Dto.ContractDto;
+import tn.esprit.clientmanagmentctinetwork.Dto.VisitValidationDto;
 import tn.esprit.clientmanagmentctinetwork.Model.ContractModel;
 
 import java.time.LocalDate;
@@ -22,4 +23,7 @@ public interface ContractService {
     ContractModel renewContract(Long id);
     ContractModel updateContractScheduleDates(Long id, List<tn.esprit.clientmanagmentctinetwork.Dto.VisitScheduleDto> visits);
     void checkContractNotifications();
+
+    ContractModel validateVisit(Long id, VisitValidationDto dto, String currentUserName);
+    ContractModel deleteVisitData(Long id, int index);
 }
