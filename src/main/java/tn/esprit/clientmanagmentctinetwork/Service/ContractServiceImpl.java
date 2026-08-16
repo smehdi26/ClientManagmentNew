@@ -5,13 +5,13 @@ import org.springframework.transaction.annotation.Transactional;
 import tn.esprit.clientmanagmentctinetwork.Dto.ContractDto;
 import tn.esprit.clientmanagmentctinetwork.Dto.VisitScheduleDto;
 import tn.esprit.clientmanagmentctinetwork.Dto.VisitValidationDto;
-import tn.esprit.clientmanagmentctinetwork.Model.ClientModel;
-import tn.esprit.clientmanagmentctinetwork.Model.ContractModel;
-import tn.esprit.clientmanagmentctinetwork.Model.ContractHistoryModel;
-import tn.esprit.clientmanagmentctinetwork.Model.NotificationModel;
+import tn.esprit.clientmanagmentctinetwork.Model.*;
 import tn.esprit.clientmanagmentctinetwork.Repository.ClientRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.ContractRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.NotificationRepository;
+import tn.esprit.clientmanagmentctinetwork.Service.MessageService;
+import tn.esprit.clientmanagmentctinetwork.Repository.UserRepository; // 1. Add this import
+
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -25,15 +25,21 @@ public class ContractServiceImpl implements ContractService {
     private final ClientRepository clientRepository;
     private final NotificationService notificationService;
     private final NotificationRepository notificationRepository;
+    private final MessageService messageService; // 2. Add this variable
+    private final UserRepository userRepository;
 
     public ContractServiceImpl(ContractRepository contractRepository,
                                ClientRepository clientRepository,
                                NotificationService notificationService,
-                               NotificationRepository notificationRepository) {
+                               NotificationRepository notificationRepository, MessageService messageService,
+                               UserRepository userRepository) {
         this.contractRepository = contractRepository;
         this.clientRepository = clientRepository;
         this.notificationService = notificationService;
         this.notificationRepository = notificationRepository;
+        this.messageService = messageService;
+        this.userRepository = userRepository;
+
     }
 
     @Override
@@ -421,39 +427,54 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
-    public ContractModel validateVisit(Long id, VisitValidationDto dto, String currentUserName) {
+    public ContractModel validateVisit(Long id, VisitValidationDto dto, String currentUserEmail) {
         ContractModel contract = getContractById(id);
         int index = dto.getVisitIndex();
+        LocalDate submittedDate = LocalDate.parse(dto.getDate());
 
-        // 1. SEQUENCE CONTROL (The logic you requested)
-        if (index > 1) {
-            if (!isVisitValidated(contract, index - 1)) {
-                throw new IllegalStateException("Impossible de valider la visite #" + index +
-                        " car la visite #" + (index - 1) + " n'est pas encore faite.");
-            }
+        // 1. SEQUENCE CONTROL (Previous visit must exist)
+        if (index > 1 && !isVisitValidated(contract, index - 1)) {
+            throw new IllegalStateException("La visite #" + (index - 1) + " doit être validée avant.");
         }
 
-        // 2. MAP DATA BASED ON INDEX
-        LocalDate date = LocalDate.parse(dto.getDate());
-        String obs = dto.getObservations();
-        String file = dto.getFilePath();
-        String fileName = dto.getFileName();
+        // 2. PERIOD CONTROL (TDD Requirement)
+        // Calculate interval length based on NDV (12 months / number of visits)
+        int intervalMonths = 12 / contract.getNumberOfVisits();
 
-        switch (index) {
-            case 1 -> { contract.setVisitDate1(date); contract.setVisitObs1(obs); contract.setVisitUser1(currentUserName); contract.setVisitFile1(file); contract.setVisitFileName1(fileName); }
-            case 2 -> { contract.setVisitDate2(date); contract.setVisitObs2(obs); contract.setVisitUser2(currentUserName); contract.setVisitFile2(file); contract.setVisitFileName2(fileName); }
-            case 3 -> { contract.setVisitDate3(date); contract.setVisitObs3(obs); contract.setVisitUser3(currentUserName); contract.setVisitFile3(file); contract.setVisitFileName3(fileName); }
-            case 4 -> { contract.setVisitDate4(date); contract.setVisitObs4(obs); contract.setVisitUser4(currentUserName); contract.setVisitFile4(file); contract.setVisitFileName4(fileName); }
-            case 5 -> { contract.setVisitDate5(date); contract.setVisitObs5(obs); contract.setVisitUser5(currentUserName); contract.setVisitFile5(file); contract.setVisitFileName5(fileName); }
-            case 6 -> { contract.setVisitDate6(date); contract.setVisitObs6(obs); contract.setVisitUser6(currentUserName); contract.setVisitFile6(file); contract.setVisitFileName6(fileName); }
+        // Start of window: Signature Date + (Index - 1) * Interval
+        LocalDate minAllowedDate = contract.getDateSignature().plusMonths((long) (index - 1) * intervalMonths);
+        // End of window: Signature Date + (Index) * Interval
+        LocalDate maxAllowedDate = contract.getDateSignature().plusMonths((long) index * intervalMonths);
+
+        if (submittedDate.isBefore(minAllowedDate) || submittedDate.isAfter(maxAllowedDate)) {
+            throw new IllegalStateException(String.format(
+                    "Respect des périodes : La visite #%d doit être comprise entre le %s et le %s.",
+                    index, minAllowedDate, maxAllowedDate
+            ));
         }
 
-        return contractRepository.save(contract);
+        // 3. MAP DATA & SAVE (Existing logic)
+        UserModel user = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+        String fullName = user.getFirstName() + " " + user.getLastName();
+
+        applyVisitData(contract, index, submittedDate, dto.getObservations(), dto.getFilePath(), dto.getFileName(), fullName);
+
+        ContractModel saved = contractRepository.save(contract);
+
+        // 4. MAIL TRIGGER (Existing logic)
+        if (isContractFullyCompleted(saved)) {
+            messageService.sendMessage("system@cti-network.tn", currentUserEmail,
+                    "Facturation Prête : " + saved.getName(), "Contrat terminé.");
+        }
+
+        return saved;
     }
 
     @Override
     public ContractModel deleteVisitData(Long id, int index) {
         ContractModel contract = getContractById(id);
+        // Clear all fields for the specific slot
         switch (index) {
             case 1 -> { contract.setVisitDate1(null); contract.setVisitObs1(null); contract.setVisitUser1(null); contract.setVisitFile1(null); contract.setVisitFileName1(null); }
             case 2 -> { contract.setVisitDate2(null); contract.setVisitObs2(null); contract.setVisitUser2(null); contract.setVisitFile2(null); contract.setVisitFileName2(null); }
@@ -465,7 +486,9 @@ public class ContractServiceImpl implements ContractService {
         return contractRepository.save(contract);
     }
 
-    // Helper for sequence check
+    /**
+     * Helper: Returns true if the visit slot has a date
+     */
     private boolean isVisitValidated(ContractModel c, int idx) {
         return switch (idx) {
             case 1 -> c.getVisitDate1() != null;
@@ -478,23 +501,33 @@ public class ContractServiceImpl implements ContractService {
         };
     }
 
-    private boolean isVisitDone(ContractModel c, int idx) {
-        if (idx == 1) return c.getVisitDate1() != null;
-        if (idx == 2) return c.getVisitDate2() != null;
-        if (idx == 3) return c.getVisitDate3() != null;
-        if (idx == 4) return c.getVisitDate4() != null;
-        if (idx == 5) return c.getVisitDate5() != null;
-        return c.getVisitDate6() != null;
-    }
-
+    /**
+     * Helper: Assigns technical data to the correct slot
+     */
     private void applyVisitData(ContractModel c, int idx, LocalDate date, String obs, String file, String fileName, String user) {
         switch (idx) {
-            case 1 -> { c.setVisitDate1(date); c.setVisitObs1(obs); c.setVisitFile1(file); c.setVisitFileName1(fileName); c.setVisitUser1(user); }
-            case 2 -> { c.setVisitDate2(date); c.setVisitObs2(obs); c.setVisitFile2(file); c.setVisitFileName2(fileName); c.setVisitUser2(user); }
-            case 3 -> { c.setVisitDate3(date); c.setVisitObs3(obs); c.setVisitFile3(file); c.setVisitFileName3(fileName); c.setVisitUser3(user); }
-            case 4 -> { c.setVisitDate4(date); c.setVisitObs4(obs); c.setVisitFile4(file); c.setVisitFileName4(fileName); c.setVisitUser4(user); }
-            case 5 -> { c.setVisitDate5(date); c.setVisitObs5(obs); c.setVisitFile5(file); c.setVisitFileName5(fileName); c.setVisitUser5(user); }
-            case 6 -> { c.setVisitDate6(date); c.setVisitObs6(obs); c.setVisitFile6(file); c.setVisitFileName6(fileName); c.setVisitUser6(user); }
+            case 1 -> { c.setVisitDate1(date); c.setVisitObs1(obs); c.setVisitUser1(user); c.setVisitFile1(file); c.setVisitFileName1(fileName); }
+            case 2 -> { c.setVisitDate2(date); c.setVisitObs2(obs); c.setVisitUser2(user); c.setVisitFile2(file); c.setVisitFileName2(fileName); }
+            case 3 -> { c.setVisitDate3(date); c.setVisitObs3(obs); c.setVisitUser3(user); c.setVisitFile3(file); c.setVisitFileName3(fileName); }
+            case 4 -> { c.setVisitDate4(date); c.setVisitObs4(obs); c.setVisitUser4(user); c.setVisitFile4(file); c.setVisitFileName4(fileName); }
+            case 5 -> { c.setVisitDate5(date); c.setVisitObs5(obs); c.setVisitUser5(user); c.setVisitFile5(file); c.setVisitFileName5(fileName); }
+            case 6 -> { c.setVisitDate6(date); c.setVisitObs6(obs); c.setVisitUser6(user); c.setVisitFile6(file); c.setVisitFileName6(fileName); }
         }
+    }
+
+    /**
+     * Helper: Compares number of validated slots with the required NDV
+     */
+    private boolean isContractFullyCompleted(ContractModel c) {
+        int count = 0;
+        if (c.getVisitDate1() != null) count++;
+        if (c.getVisitDate2() != null) count++;
+        if (c.getVisitDate3() != null) count++;
+        if (c.getVisitDate4() != null) count++;
+        if (c.getVisitDate5() != null) count++;
+        if (c.getVisitDate6() != null) count++;
+
+        // Match against the Number of Visits (NDV) required by this contract type
+        return count >= c.getNumberOfVisits();
     }
 }

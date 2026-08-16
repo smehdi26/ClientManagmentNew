@@ -162,22 +162,15 @@ public class ContractRestController {
 
         String email;
 
-        // 1. Identify the user email (handles both Google and Manual login)
+        // 1. Identify the user email correctly (Google or Form)
         if (authentication.getPrincipal() instanceof OAuth2User oAuth2User) {
             email = oAuth2User.getAttribute("email");
         } else {
             email = authentication.getName();
         }
 
-        // 2. Fetch the user from the database to get the real Name (Fixes the symbol error)
-        UserModel user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Logged in user not found in database"));
-
-        // 3. Construct the Full Name
-        String fullName = user.getFirstName() + " " + user.getLastName();
-
-        // 4. Pass the Full Name to the service
-        return ResponseEntity.ok(contractService.validateVisit(id, dto, fullName));
+        // 2. Pass the EMAIL to the service (not the fullName)
+        return ResponseEntity.ok(contractService.validateVisit(id, dto, email));
     }
 
     /**
