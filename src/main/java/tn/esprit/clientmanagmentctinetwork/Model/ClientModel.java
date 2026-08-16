@@ -1,6 +1,8 @@
 package tn.esprit.clientmanagmentctinetwork.Model;
 
 import jakarta.persistence.*;
+
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,6 +49,15 @@ public class ClientModel {
         phone.setClient(null);
     }
 
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    // This method runs automatically before the client is saved to the DB
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+    }
+
     @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true)
     @com.fasterxml.jackson.annotation.JsonIgnore // ADD THIS: Stops the serialization loop [1.2.4]
     private List<ContractModel> contracts = new java.util.ArrayList<>();
@@ -87,6 +98,9 @@ public class ClientModel {
 
     public List<ClientPhone> getPhones() { return phones; }
     public void setPhones(List<ClientPhone> phones) { this.phones = phones; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
     // Null-safe helper to retrieve primary phone number
     public String getPrimaryPhoneNumber() {
