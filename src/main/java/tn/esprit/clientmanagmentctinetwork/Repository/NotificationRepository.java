@@ -21,5 +21,5 @@ public interface NotificationRepository extends JpaRepository<NotificationModel,
     boolean existsByTriggerKey(String triggerKey);
 
     // Finds notifications that are read AND older than a specific date
-    void deleteByReadStatusTrueAndCreatedAtBefore(java.time.LocalDateTime threshold);
+    /*void deleteByReadStatusTrueAndCreatedAtBefore(java.time.LocalDateTime threshold);*/
 }

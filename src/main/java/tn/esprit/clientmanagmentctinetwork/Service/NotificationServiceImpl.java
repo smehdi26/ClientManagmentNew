@@ -107,7 +107,7 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     // Runs every day at midnight
-    @Scheduled(cron = "0 0 0 * * *")
+    /*@Scheduled(cron = "0 0 0 * * *")
     public void autoDeleteOldNotifications() {
         // Calculate the date 45 days ago
         java.time.LocalDateTime threshold = java.time.LocalDateTime.now().minusDays(45);
@@ -120,5 +120,5 @@ public class NotificationServiceImpl implements NotificationService {
 
         notificationRepository.deleteAll(oldNotifications);
         System.out.println("Cleanup: Deleted " + oldNotifications.size() + " old read notifications.");
-    }
+    }*/
 }
