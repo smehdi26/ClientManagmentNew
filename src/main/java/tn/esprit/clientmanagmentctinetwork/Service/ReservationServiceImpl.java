@@ -164,18 +164,20 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
-    public void cancelReservation(Long id, String reason) {
+    public void cancelReservation(Long id, String reason, String userName) {
         ReservationModel reservation = reservationRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Reservation record not found."));
+
         reservation.setStatus("CANCELLED");
         reservation.setCancellationReason(reason);
+        reservation.setStatusUpdatedBy(userName); // Save who cancelled the reservation
         reservationRepository.save(reservation);
 
         String primaryPhone = reservation.getClient() != null ? reservation.getClient().getPrimaryPhoneNumber() : null;
 
         notificationService.createDetailedNotification(
                 "Réservation annulée",
-                "Reservation for client " + reservation.getClient().getName() + " has been CANCELLED. Reason: " + (reason != null ? reason : "Not specified"),
+                "Reservation for client " + reservation.getClient().getName() + " has been CANCELLED by " + userName + ". Reason: " + (reason != null && !reason.trim().isEmpty() ? reason : "Not specified"),
                 "DANGER", "RESERVATION", "SAFE", "GREEN", "LOW",
                 "RESERVATION_CANCEL_" + reservation.getId(), null, primaryPhone
         );
@@ -211,18 +213,21 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
-    public void updateReservationStatus(Long id, String status) {
+    public void updateReservationStatus(Long id, String status, String userName) {
         ReservationModel r = reservationRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
+
         r.setStatus(status);
-        r.setCancellationReason(null);
+        r.setStatusUpdatedBy(userName); // Save who performed the action
+        r.setCancellationReason(null);  // Clear previous cancellation reason if status is changed
         reservationRepository.save(r);
 
         String primaryPhone = r.getClient() != null ? r.getClient().getPrimaryPhoneNumber() : null;
 
+        // Log notification including the user name
         notificationService.createDetailedNotification(
                 "Statut de réservation modifié",
-                "Reservation status for " + r.getClient().getName() + " updated to " + status + ".",
+                "Reservation status for " + r.getClient().getName() + " updated to " + status + " by " + userName + ".",
                 "INFO", "RESERVATION", "SAFE", "GREEN", "LOW",
                 "RESERVATION_STATUS_" + r.getId() + "_" + System.currentTimeMillis(), null, primaryPhone
         );
@@ -266,7 +271,10 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
-    public void cancelReservation(Long id) { cancelReservation(id, null); }
+    public void cancelReservation(Long id) {
+        // FIX: You must pass 3 arguments here now: id, reason, and a default user name
+        this.cancelReservation(id, null, "System");
+    }
 
     @Override
     public List<ReservationModel> getReservationsByClientId(Long clientId) {
@@ -281,7 +289,7 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     @Override
-    public ReservationModel updateReservation(Long id, ReservationDto dto) {
+    public ReservationModel updateReservation(Long id, ReservationDto dto, String userName) {
         ReservationModel res = reservationRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Reservation not found"));
 
@@ -289,6 +297,7 @@ public class ReservationServiceImpl implements ReservationService {
         res.setPriority(dto.getPriority());
         res.setDescription(dto.getDescription());
         res.setStatus(dto.getStatus());
+        res.setStatusUpdatedBy(userName); // Track who edited the record
 
         if (dto.getTechnicianId() != null) {
             UserModel tech = userRepository.findById(dto.getTechnicianId())

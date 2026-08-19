@@ -2,11 +2,15 @@ package tn.esprit.clientmanagmentctinetwork.Controller;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 import tn.esprit.clientmanagmentctinetwork.Dto.ReservationDto;
 import tn.esprit.clientmanagmentctinetwork.Dto.TimeSlot;
 import tn.esprit.clientmanagmentctinetwork.Model.ReservationModel;
+import tn.esprit.clientmanagmentctinetwork.Model.UserModel;
 import tn.esprit.clientmanagmentctinetwork.Service.ReservationService;
+import tn.esprit.clientmanagmentctinetwork.Repository.UserRepository;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -16,9 +20,11 @@ import java.util.List;
 public class ReservationRestController {
 
     private final ReservationService reservationService;
+    private final UserRepository userRepository; // 2. Added Declaration
 
-    public ReservationRestController(ReservationService reservationService) {
+    public ReservationRestController(ReservationService reservationService, UserRepository userRepository) {
         this.reservationService = reservationService;
+        this.userRepository = userRepository;
     }
 
     // GET all reservations with optional search and filter
@@ -52,10 +58,30 @@ public class ReservationRestController {
     @PostMapping("/cancel/{id}")
     public ResponseEntity<Void> cancelSlot(
             @PathVariable Long id,
-            @RequestParam(value = "reason", required = false) String reason) {
+            @RequestParam(value = "reason", required = false) String reason,
+            Authentication authentication) {
 
-        reservationService.cancelReservation(id, reason);
+        String fullName = getAuthenticatedUserFullName(authentication);
+
+        // Fix: Pass the 3rd argument here as well
+        reservationService.cancelReservation(id, reason, fullName);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Helper to get full name from database using the current authentication
+     */
+    private String getAuthenticatedUserFullName(Authentication authentication) {
+        String email;
+        if (authentication.getPrincipal() instanceof org.springframework.security.oauth2.core.user.OAuth2User oAuth2User) {
+            email = oAuth2User.getAttribute("email");
+        } else {
+            email = authentication.getName();
+        }
+
+        return userRepository.findByEmail(email)
+                .map(u -> u.getFirstName() + " " + u.getLastName())
+                .orElse("Unknown User");
     }
 
     // POST update reservation status manually
@@ -63,12 +89,17 @@ public class ReservationRestController {
     public ResponseEntity<Void> updateStatus(
             @PathVariable Long id,
             @RequestParam("status") String status,
-            @RequestParam(value = "reason", required = false) String reason) {
+            @RequestParam(value = "reason", required = false) String reason,
+            Authentication authentication) {
 
+        // 1. Get the current user's full name
+        String fullName = getAuthenticatedUserFullName(authentication);
+
+        // 2. Call the service with the new 3-parameter signature
         if ("CANCELLED".equals(status)) {
-            reservationService.cancelReservation(id, reason);
+            reservationService.cancelReservation(id, reason, fullName);
         } else {
-            reservationService.updateReservationStatus(id, status);
+            reservationService.updateReservationStatus(id, status, fullName);
         }
         return ResponseEntity.noContent().build();
     }
@@ -93,7 +124,12 @@ public class ReservationRestController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ReservationModel> updateReservation(@PathVariable Long id, @RequestBody ReservationDto dto) {
-        return ResponseEntity.ok(reservationService.updateReservation(id, dto));
+    public ResponseEntity<ReservationModel> updateReservation(
+            @PathVariable Long id,
+            @RequestBody ReservationDto dto,
+            Authentication authentication) {
+
+        String fullName = getAuthenticatedUserFullName(authentication);
+        return ResponseEntity.ok(reservationService.updateReservation(id, dto, fullName));
     }
 }

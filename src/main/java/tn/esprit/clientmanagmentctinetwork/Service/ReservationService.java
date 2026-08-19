@@ -12,15 +12,15 @@ public interface ReservationService {
 
     // Overloaded to support both versions and prevent compiler sync issues
     void cancelReservation(Long id);
-    void cancelReservation(Long id, String reason);
+    void cancelReservation(Long id, String reason, String userName); // Update to 3 parameters
 
     List<TimeSlot> getSlotsForDate(LocalDate date);
     List<ReservationModel> getReservationsByClientId(Long clientId);
     List<ReservationModel> getAllReservations();
-    void updateReservationStatus(Long id, String status);
+    void updateReservationStatus(Long id, String status, String userName);
     long countTodayReservations();
     List<ReservationModel> getUpcomingAlerts();
     List<ReservationModel> searchAndFilterReservations(String keyword, String status, String priority);
     void deleteReservation(Long id);
-    ReservationModel updateReservation(Long id, ReservationDto dto);
+    ReservationModel updateReservation(Long id, ReservationDto dto, String userName);
 }

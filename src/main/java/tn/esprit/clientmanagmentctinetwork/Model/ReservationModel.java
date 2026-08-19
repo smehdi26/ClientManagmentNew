@@ -38,6 +38,9 @@ public class ReservationModel {
     @Column(nullable = false)
     private String priority = "MEDIUM";
 
+    private String statusUpdatedBy; // Tracks the name of the user who performed the action
+
+
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -66,4 +69,7 @@ public class ReservationModel {
     // --- ADD THESE METHODS ---
     public String getPriority() { return priority; }
     public void setPriority(String priority) { this.priority = priority; }
+
+    public String getStatusUpdatedBy() { return statusUpdatedBy; }
+    public void setStatusUpdatedBy(String statusUpdatedBy) { this.statusUpdatedBy = statusUpdatedBy; }
 }
