@@ -432,18 +432,14 @@ public class ContractServiceImpl implements ContractService {
         int index = dto.getVisitIndex();
         LocalDate submittedDate = LocalDate.parse(dto.getDate());
 
-        // 1. SEQUENCE CONTROL (Previous visit must exist)
+        // 1. SEQUENCE CONTROL
         if (index > 1 && !isVisitValidated(contract, index - 1)) {
             throw new IllegalStateException("La visite #" + (index - 1) + " doit être validée avant.");
         }
 
-        // 2. PERIOD CONTROL (TDD Requirement)
-        // Calculate interval length based on NDV (12 months / number of visits)
+        // 2. PERIOD CONTROL (Temporal logic check)
         int intervalMonths = 12 / contract.getNumberOfVisits();
-
-        // Start of window: Signature Date + (Index - 1) * Interval
         LocalDate minAllowedDate = contract.getDateSignature().plusMonths((long) (index - 1) * intervalMonths);
-        // End of window: Signature Date + (Index) * Interval
         LocalDate maxAllowedDate = contract.getDateSignature().plusMonths((long) index * intervalMonths);
 
         if (submittedDate.isBefore(minAllowedDate) || submittedDate.isAfter(maxAllowedDate)) {
@@ -453,19 +449,36 @@ public class ContractServiceImpl implements ContractService {
             ));
         }
 
-        // 3. MAP DATA & SAVE (Existing logic)
+        // 3. FETCH USER DATA FOR FULL NAME
         UserModel user = userRepository.findByEmail(currentUserEmail)
                 .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
         String fullName = user.getFirstName() + " " + user.getLastName();
 
+        // 4. MAP DATA BASED ON INDEX
         applyVisitData(contract, index, submittedDate, dto.getObservations(), dto.getFilePath(), dto.getFileName(), fullName);
 
+        // 5. SAVE
         ContractModel saved = contractRepository.save(contract);
 
-        // 4. MAIL TRIGGER (Existing logic)
+        // 6. STANDARDIZED INTERNAL MAIL TRIGGER (Matches Screenshot #1)
         if (isContractFullyCompleted(saved)) {
-            messageService.sendMessage("system@cti-network.tn", currentUserEmail,
-                    "Facturation Prête : " + saved.getName(), "Contrat terminé.");
+            String subject = "Facturation Prête : " + saved.getName();
+
+            // This format matches exactly your professional screenshot
+            String content = String.format(
+                    "Bonjour,\n\n" +
+                            "Toutes les visites de maintenance (%d/%d) pour le contrat '%s' ont été validées par %s.\n" +
+                            "Le client %s (Code: %s) est désormais prêt pour la facturation.",
+                    saved.getNumberOfVisits(),
+                    saved.getNumberOfVisits(),
+                    saved.getName(),
+                    fullName,
+                    saved.getClient().getName(),
+                    saved.getClient().getClientCode()
+            );
+
+            // Send to the logged-in email
+            messageService.sendMessage("system@cti-network.tn", currentUserEmail, subject, content);
         }
 
         return saved;
