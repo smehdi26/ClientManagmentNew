@@ -21,6 +21,8 @@ import tn.esprit.clientmanagmentctinetwork.Dto.LoginDto;
 import tn.esprit.clientmanagmentctinetwork.Model.UserModel;
 import tn.esprit.clientmanagmentctinetwork.Repository.UserRepository;
 import tn.esprit.clientmanagmentctinetwork.Service.UserService;
+import tn.esprit.clientmanagmentctinetwork.Repository.ReservationRepository;
+import tn.esprit.clientmanagmentctinetwork.Repository.ContractRepository;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -35,11 +37,15 @@ public class AuthRestController {
     private final UserService userService;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ReservationRepository reservationRepository;
+    private final ContractRepository contractRepository;
     private final SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
 
-    public AuthRestController(UserService userService, UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthRestController(UserService userService, UserRepository userRepository, ContractRepository contractRepository, ReservationRepository reservationRepository, PasswordEncoder passwordEncoder) {
         this.userService = userService;
         this.userRepository = userRepository;
+        this.reservationRepository = reservationRepository;
+        this.contractRepository = contractRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -122,5 +128,20 @@ public class AuthRestController {
         return userRepository.findByEmail(email)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    }
+
+    @GetMapping("/user-stats")
+    public ResponseEntity<?> getUserStats(@RequestParam("email") String email) {
+        UserModel user = userRepository.findByEmail(email).orElseThrow();
+        String fullName = user.getFirstName() + " " + user.getLastName();
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalReservations", reservationRepository.countByTechnicianId(user.getId()));
+        stats.put("done", reservationRepository.countByTechnicianIdAndStatus(user.getId(), "DONE"));
+        stats.put("inProgress", reservationRepository.countByTechnicianIdAndStatus(user.getId(), "IN_PROGRESS"));
+        stats.put("untreated", reservationRepository.countByTechnicianIdAndStatus(user.getId(), "UNTREATED"));
+        stats.put("validatedVisits", contractRepository.countVisitsByTechnicianName(fullName));
+
+        return ResponseEntity.ok(stats);
     }
 }

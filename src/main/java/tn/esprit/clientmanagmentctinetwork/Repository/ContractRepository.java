@@ -34,4 +34,18 @@ public interface ContractRepository extends JpaRepository<ContractModel, Long> {
             @Param("keyword") String keyword,
             @Param("redevance") String redevance,
             @Param("status") String status); // Added parameter
+
+    @Query("SELECT ( " +
+            "(SELECT COUNT(c) FROM ContractModel c WHERE c.visitUser1 = :name) + " +
+            "(SELECT COUNT(c) FROM ContractModel c WHERE c.visitUser2 = :name) + " +
+            "(SELECT COUNT(c) FROM ContractModel c WHERE c.visitUser3 = :name) + " +
+            "(SELECT COUNT(c) FROM ContractModel c WHERE c.visitUser4 = :name) + " +
+            "(SELECT COUNT(c) FROM ContractModel c WHERE c.visitUser5 = :name) + " +
+            "(SELECT COUNT(c) FROM ContractModel c WHERE c.visitUser6 = :name) ) FROM ContractModel c")
+    long countVisitsValidatedByName(@Param("name") String name);
+
+    @Query("SELECT COUNT(c) FROM ContractModel c WHERE " +
+            "c.visitUser1 = :name OR c.visitUser2 = :name OR c.visitUser3 = :name OR " +
+            "c.visitUser4 = :name OR c.visitUser5 = :name OR c.visitUser6 = :name")
+    long countVisitsByTechnicianName(@Param("name") String name);
 }

@@ -50,4 +50,7 @@ public interface ReservationRepository extends JpaRepository<ReservationModel, L
             @Param("searchMinute") Integer searchMinute,
             @Param("searchDateStart") java.time.LocalDateTime searchDateStart,
             @Param("searchDateEnd") java.time.LocalDateTime searchDateEnd);
+
+    long countByTechnicianIdAndStatus(Long techId, String status);
+    long countByTechnicianId(Long techId);
 }
