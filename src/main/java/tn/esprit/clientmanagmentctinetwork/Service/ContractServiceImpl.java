@@ -11,6 +11,11 @@ import tn.esprit.clientmanagmentctinetwork.Repository.ContractRepository;
 import tn.esprit.clientmanagmentctinetwork.Repository.NotificationRepository;
 import tn.esprit.clientmanagmentctinetwork.Service.MessageService;
 import tn.esprit.clientmanagmentctinetwork.Repository.UserRepository; // 1. Add this import
+import java.util.Map;
+import java.util.HashMap;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Comparator;
 
 
 import java.time.LocalDate;
@@ -542,5 +547,59 @@ public class ContractServiceImpl implements ContractService {
 
         // Match against the Number of Visits (NDV) required by this contract type
         return count >= c.getNumberOfVisits();
+    }
+
+    @Override
+    public List<Map<String, Object>> getUrgentVisits() {
+        List<ContractModel> allContracts = contractRepository.findAll();
+        List<Map<String, Object>> urgentList = new ArrayList<>();
+        LocalDate now = LocalDate.now();
+
+        for (ContractModel c : allContracts) {
+            // Only check active contracts
+            if (!"ACTIVE".equals(c.getStatus())) continue;
+
+            int totalVisits = c.getNumberOfVisits();
+            if (totalVisits == 0) continue;
+
+            int interval = 12 / totalVisits;
+
+            // Calculate the current cycle based on months elapsed since signature
+            long monthsElapsed = java.time.temporal.ChronoUnit.MONTHS.between(c.getDateSignature(), now);
+            int currentCycle = (int) (monthsElapsed / interval) + 1;
+
+            // If the contract year is over, skip
+            if (currentCycle > totalVisits) continue;
+
+            // Check if the visit for the CURRENT cycle is already validated
+            boolean isDone = isVisitValidated(c, currentCycle);
+
+            if (!isDone) {
+                LocalDate cycleStart = c.getDateSignature().plusMonths((long) (currentCycle - 1) * interval);
+                LocalDate cycleEnd = c.getDateSignature().plusMonths((long) currentCycle * interval);
+
+                long totalDays = java.time.temporal.ChronoUnit.DAYS.between(cycleStart, cycleEnd);
+                long daysPassed = java.time.temporal.ChronoUnit.DAYS.between(cycleStart, now);
+
+                if (totalDays > 0) {
+                    double ratio = (double) daysPassed / totalDays;
+
+                    // TDD Requirement: "Urgent condition" = Final third of the period (66%+)
+                    if (ratio >= 0.66) {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("contractName", c.getName()); // Fixed: used .put()
+                        map.put("clientName", c.getClient().getName());
+                        map.put("deadline", cycleEnd);
+                        map.put("visitIndex", currentCycle);
+                        urgentList.add(map);
+                    }
+                }
+            }
+        }
+
+        // Sort oldest deadline first (Oldest to Newest)
+        urgentList.sort(Comparator.comparing(m -> (LocalDate) m.get("deadline")));
+
+        return urgentList;
     }
 }

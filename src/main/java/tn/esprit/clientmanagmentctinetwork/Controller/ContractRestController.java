@@ -180,4 +180,9 @@ public class ContractRestController {
     public ResponseEntity<ContractModel> deleteVisit(@PathVariable Long id, @PathVariable int index) {
         return ResponseEntity.ok(contractService.deleteVisitData(id, index));
     }
+
+    @GetMapping("/urgent-alerts")
+    public ResponseEntity<List<Map<String, Object>>> getUrgentAlerts() {
+        return ResponseEntity.ok(contractService.getUrgentVisits());
+    }
 }

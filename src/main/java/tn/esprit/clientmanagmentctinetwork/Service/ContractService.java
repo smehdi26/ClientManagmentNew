@@ -6,6 +6,7 @@ import tn.esprit.clientmanagmentctinetwork.Model.ContractModel;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 public interface ContractService {
     ContractModel createContract(ContractDto dto);
@@ -26,4 +27,6 @@ public interface ContractService {
 
     ContractModel validateVisit(Long id, VisitValidationDto dto, String currentUserName);
     ContractModel deleteVisitData(Long id, int index);
+    List<Map<String, Object>> getUrgentVisits();
+
 }
