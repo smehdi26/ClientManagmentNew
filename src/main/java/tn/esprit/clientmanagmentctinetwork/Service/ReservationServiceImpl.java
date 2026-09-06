@@ -186,27 +186,47 @@ public class ReservationServiceImpl implements ReservationService {
     @Override
     public List<TimeSlot> getSlotsForDate(LocalDate date) {
         List<TimeSlot> slots = new ArrayList<>();
-        if (date.getDayOfWeek() == DayOfWeek.SUNDAY) return slots;
 
+        // Check if it's Sunday (Closed)
+        if (date.getDayOfWeek() == DayOfWeek.SUNDAY) {
+            return slots;
+        }
+
+        // Define working hours: 09:00 to 17:00 (or 13:00 on Saturdays)
         LocalTime startTime = LocalTime.of(9, 0);
         LocalTime endTime = (date.getDayOfWeek() == DayOfWeek.SATURDAY) ? LocalTime.of(13, 0) : LocalTime.of(17, 0);
 
-        List<ReservationModel> dailyBookings = reservationRepository.findActiveByTimeRange(
-                LocalDateTime.of(date, LocalTime.MIN), LocalDateTime.of(date, LocalTime.MAX));
+        // Fetch all active reservations for that specific day
+        LocalDateTime startOfDay = LocalDateTime.of(date, LocalTime.MIN);
+        LocalDateTime endOfDay = LocalDateTime.of(date, LocalTime.MAX);
+        List<ReservationModel> dailyBookings = reservationRepository.findActiveByTimeRange(startOfDay, endOfDay);
 
         LocalTime current = startTime;
         while (current.isBefore(endTime)) {
-            LocalTime finalCurrent = current;
+            LocalTime slotTime = current; // Declaring slotTime here fixes the error
+
+            // Check if there is a reservation at this specific time
             Optional<ReservationModel> match = dailyBookings.stream()
-                    .filter(r -> r.getReservationTime().toLocalTime().equals(finalCurrent))
+                    .filter(r -> r.getReservationTime().toLocalTime().equals(slotTime))
                     .findFirst();
 
             if (match.isPresent()) {
                 ReservationModel r = match.get();
-                slots.add(new TimeSlot(finalCurrent, true, r.getClient().getName(), r.getId(), r.getDescription()));
+                // Pass: Time, Booked(true), Client Name, ID, Description, and Reservation Name
+                slots.add(new TimeSlot(
+                        slotTime,
+                        true,
+                        r.getClient().getName(),
+                        r.getId(),
+                        r.getDescription(),
+                        r.getName() // This is the Reservation Title
+                ));
             } else {
-                slots.add(new TimeSlot(finalCurrent, false, null, null, null));
+                // Pass: Time, Booked(false), and nulls for the rest
+                slots.add(new TimeSlot(slotTime, false, null, null, null, null));
             }
+
+            // Move to the next 30-minute interval
             current = current.plusMinutes(30);
         }
         return slots;

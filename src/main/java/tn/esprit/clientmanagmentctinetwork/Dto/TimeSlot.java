@@ -8,13 +8,15 @@ public class TimeSlot {
     private String clientName;
     private Long reservationId;
     private String description;
+    private String reservationName;
 
-    public TimeSlot(LocalTime time, boolean booked, String clientName, Long reservationId, String description) {
+    public TimeSlot(LocalTime time, boolean booked, String clientName, Long reservationId, String description, String reservationName) {
         this.time = time;
         this.booked = booked;
         this.clientName = clientName;
         this.reservationId = reservationId;
         this.description = description;
+        this.reservationName = reservationName;
     }
 
     // Getters and Setters
@@ -32,4 +34,7 @@ public class TimeSlot {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public String getReservationName() { return reservationName; }
+    public void setReservationName(String reservationName) { this.reservationName = reservationName; }
 }
